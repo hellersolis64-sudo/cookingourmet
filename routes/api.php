@@ -25,6 +25,9 @@ Route::middleware(['throttle:300,1'])->group(function () {
     // ✅ Preflight CORS
     Route::options('/{any}', fn () => response()->noContent(204))->where('any', '.*');
 
+    // ✅ Health check público
+    Route::get('/health', fn () => response()->json(['ok' => true]));
+
     // ---------------- PUBLIC ----------------
     Route::post('/login', [AuthController::class, 'login']);
 

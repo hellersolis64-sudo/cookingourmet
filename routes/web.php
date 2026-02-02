@@ -2,7 +2,11 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', fn () => view('welcome'));
+// Home del backend (API). Ya no mostramos la vista welcome.
+Route::get('/', fn () => response()->json([
+    'success' => true,
+    'app' => 'cookingourmet api',
+]));
 
 /**
  * ✅ FIX: evita "Route [login] not defined" cuando sanctum/auth redirige.
