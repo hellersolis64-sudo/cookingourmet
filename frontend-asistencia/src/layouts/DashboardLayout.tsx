@@ -142,7 +142,7 @@ export default function DashboardLayout() {
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-xl bg-[#FE003E]" />
           <div className="min-w-0">
-            <div className="font-extrabold leading-tight">TimeFlow</div>
+            <div className="font-extrabold leading-tight">CG-AdminControler</div>
             <div className="text-xs text-white/60 truncate">
               {me ? `${me.name} — ${me.email}` : "Control"}
             </div>
