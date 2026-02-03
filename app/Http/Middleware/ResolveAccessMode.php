@@ -10,12 +10,31 @@ class ResolveAccessMode
 {
     private function officeIps(): array
     {
-        // ✅ Lee directo desde .env (OFFICE_IPS)
-        $raw = (string) env('OFFICE_IPS', '');
-        $ips = array_filter(array_map('trim', explode(',', $raw)));
+        // ✅ Mejor: desde config (compatible con config cache)
+        $ips = config('app.office_ips', []);
 
-        // fallback seguro (por si alguien olvida setear env)
+        // fallback por si no lo agregaron en config/app.php
+        if (!is_array($ips) || empty($ips)) {
+            $raw = (string) env('OFFICE_IPS', '');
+            $ips = array_filter(array_map('trim', explode(',', $raw)));
+        }
+
         return $ips;
+    }
+
+    private function clientIp(Request $request): string
+    {
+        // Railway / proxies: X-Forwarded-For suele ser "IP_CLIENTE, IP_PROXY, ..."
+        $xff = $request->header('X-Forwarded-For');
+        if ($xff) {
+            $parts = array_values(array_filter(array_map('trim', explode(',', $xff))));
+            if (!empty($parts[0])) return $parts[0];
+        }
+
+        $xri = $request->header('X-Real-IP');
+        if ($xri) return trim($xri);
+
+        return (string) $request->ip();
     }
 
     public function handle(Request $request, Closure $next)
@@ -23,7 +42,7 @@ class ResolveAccessMode
         $user = $request->user();
         if (!$user) return $next($request);
 
-        $ip = $request->ip();
+        $ip = $this->clientIp($request);
         $officeIps = $this->officeIps();
         $inOffice = in_array($ip, $officeIps, true);
 

@@ -67,7 +67,6 @@ return [
 
     'timezone' => env('APP_TIMEZONE', 'America/Lima'),
 
-
     /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration
@@ -123,5 +122,17 @@ return [
         'driver' => env('APP_MAINTENANCE_DRIVER', 'file'),
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Office IPs (Acceso completo)
+    |--------------------------------------------------------------------------
+    | Lista de IPs públicas autorizadas para modo FULL.
+    | Se define en .env como: OFFICE_IPS=ip1,ip2,ip3
+    */
+    'office_ips' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env('OFFICE_IPS', ''))
+    ))),
 
 ];
