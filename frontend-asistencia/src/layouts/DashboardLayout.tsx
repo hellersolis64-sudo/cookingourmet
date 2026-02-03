@@ -43,7 +43,7 @@ function AccessBanner() {
   if (access.mode === "viewer") {
     return (
       <div className="mb-3 rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm font-bold text-yellow-900">
-        Usted no tiene ninguna actividad programada fuera de la institución. <span className="underline">Modo visor</span>.
+        CG <span className="underline">0.1</span>.
       </div>
     );
   }
