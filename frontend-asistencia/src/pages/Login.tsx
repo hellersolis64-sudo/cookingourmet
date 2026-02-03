@@ -9,7 +9,7 @@ export default function Login() {
 
   const { signIn, refreshAccessMode } = useAuth();
 
-  const [email, setEmail] = useState("admin@demo.com");
+  const [email, setEmail] = useState("@cookingourmet.edu.pe");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
