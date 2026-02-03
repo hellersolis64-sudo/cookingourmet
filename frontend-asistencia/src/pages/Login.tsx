@@ -90,7 +90,7 @@ export default function Login() {
                 className="w-full bg-white/5 rounded-2xl border border-white/10 px-6 py-4 text-white outline-none focus:ring-2 focus:ring-[#FE003E]/40 transition-all placeholder:text-white/10"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@demo.com"
+                placeholder="@cookingourmet.edu.pe"
               />
             </div>
 
