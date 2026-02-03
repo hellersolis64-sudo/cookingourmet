@@ -4,7 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\Rol;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
@@ -29,5 +33,49 @@ class UserController extends Controller
             'message' => 'Lista de usuarios',
             'data' => $users,
         ]);
+    }
+
+    /**
+     * POST /api/usuarios
+     * Body: { name, email, password, rol }
+     */
+    public function store(Request $request)
+    {
+        $data = $request->validate([
+            'name'     => ['required', 'string', 'max:120'],
+            'email'    => ['required', 'email', 'max:190', Rule::unique('users', 'email')],
+            'password' => ['required', 'string', 'min:6'],
+            // tu sistema usa "nombre" en roles:
+            'rol'      => ['required', 'string', Rule::in(['admin','supervisor','empleado','estudiante'])],
+        ]);
+
+        $user = DB::transaction(function () use ($data) {
+
+            $u = User::create([
+                'name'     => $data['name'],
+                'email'    => $data['email'],
+                'password' => Hash::make($data['password']),
+            ]);
+
+            // Buscar rol por columna "nombre"
+            $rol = Rol::where('nombre', $data['rol'])->first();
+
+            if ($rol) {
+                // Pivot usuario_roles (usuario_id, rol_id)
+                $u->roles()->attach($rol->id);
+            }
+
+            return $u;
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Usuario creado',
+            'data' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+            ],
+        ], 201);
     }
 }
