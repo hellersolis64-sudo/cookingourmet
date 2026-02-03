@@ -40,42 +40,79 @@ class UserController extends Controller
      * Body: { name, email, password, rol }
      */
     public function store(Request $request)
-    {
-        $data = $request->validate([
-            'name'     => ['required', 'string', 'max:120'],
-            'email'    => ['required', 'email', 'max:190', Rule::unique('users', 'email')],
-            'password' => ['required', 'string', 'min:6'],
-            // tu sistema usa "nombre" en roles:
-            'rol'      => ['required', 'string', Rule::in(['admin','supervisor','empleado','estudiante'])],
+{
+    // puede venir por nombre o por id
+    $roleName = $request->input('rol') ?? $request->input('role');
+    $roleId   = $request->input('rol_id') ?? $request->input('role_id');
+
+    // normalizamos nombre si vino
+    if (is_string($roleName)) {
+        $roleName = strtolower(trim($roleName));
+    } else {
+        $roleName = null;
+    }
+
+    $data = $request->validate([
+        'name'     => ['required', 'string', 'max:120'],
+        'email'    => ['required', 'email', 'max:190', Rule::unique('users', 'email')],
+        'password' => ['required', 'string', 'min:6'],
+
+        // aceptamos rol por nombre o por id
+        'rol'      => ['nullable', 'string'],
+        'role'     => ['nullable', 'string'],
+        'rol_id'   => ['nullable', 'integer'],
+        'role_id'  => ['nullable', 'integer'],
+    ]);
+
+    // Validación final del rol
+    if (!$roleId && !$roleName) {
+        return response()->json([
+            'success' => false,
+            'message' => 'El rol es requerido',
+            'errors' => ['rol' => ['El rol es requerido.']],
+        ], 422);
+    }
+
+    if ($roleName && !in_array($roleName, ['admin','supervisor','empleado','estudiante'], true)) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Rol inválido',
+            'errors' => ['rol' => ['Rol inválido.']],
+        ], 422);
+    }
+
+    $user = DB::transaction(function () use ($data, $roleId, $roleName) {
+
+        $u = User::create([
+            'name'     => $data['name'],
+            'email'    => $data['email'],
+            'password' => Hash::make($data['password']),
         ]);
 
-        $user = DB::transaction(function () use ($data) {
+        // buscar rol por id o por nombre
+        $rol = null;
+        if ($roleId) {
+            $rol = Rol::find($roleId);
+        } elseif ($roleName) {
+            $rol = Rol::where('nombre', $roleName)->first();
+        }
 
-            $u = User::create([
-                'name'     => $data['name'],
-                'email'    => $data['email'],
-                'password' => Hash::make($data['password']),
-            ]);
+        if ($rol) {
+            $u->roles()->attach($rol->id);
+        }
 
-            // Buscar rol por columna "nombre"
-            $rol = Rol::where('nombre', $data['rol'])->first();
+        return $u;
+    });
 
-            if ($rol) {
-                // Pivot usuario_roles (usuario_id, rol_id)
-                $u->roles()->attach($rol->id);
-            }
+    return response()->json([
+        'success' => true,
+        'message' => 'Usuario creado',
+        'data' => [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+        ],
+    ], 201);
+}
 
-            return $u;
-        });
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Usuario creado',
-            'data' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-            ],
-        ], 201);
-    }
 }
