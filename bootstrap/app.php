@@ -31,9 +31,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'throttle:api',
         ]);
 
-        // ✅ CORS global
-        $middleware->append(\Illuminate\Http\Middleware\HandleCors::class);
+        // ✅ CORS global (ForceCors debe ir primero para que se aplique al final en la respuesta)
         $middleware->append(\App\Http\Middleware\ForceCors::class);
+        $middleware->append(\Illuminate\Http\Middleware\HandleCors::class);
+
 
     })
     ->withExceptions(function (Exceptions $exceptions) {
