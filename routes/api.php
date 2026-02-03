@@ -57,24 +57,28 @@ Route::middleware(['throttle:300,1'])->group(function () {
 
             // ✅ Lectura
             Route::get('/usuarios', [UserController::class, 'index']);
-            Route::get('/roles', [RoleController::class, 'index']); // ✅ NUEVO (arregla 405)
+            Route::get('/roles', [RoleController::class, 'index']);
             Route::get('/tareas', [TareaController::class, 'index']);
             Route::get('/usuarios/{usuario}/tareas', [TareaController::class, 'tareasPorUsuario'])->whereNumber('usuario');
             Route::get('/asistencias', [AsistenciaController::class, 'index']);
             Route::get('/extensiones', [SolicitudExtensionQueryController::class, 'index']);
-            Route::get('/schedules', [ScheduleController::class, 'index']); // Lectura de horarios
+            Route::get('/schedules', [ScheduleController::class, 'index']);
 
             // ✅ Escritura (Bloqueada si el modo de acceso es 'viewer')
             Route::middleware('require.full')->group(function () {
-                Route::post('/usuarios', [UserController::class, 'store']); // ✅ crear usuario
+                Route::post('/usuarios', [UserController::class, 'store']);
                 Route::put('/extensiones/{solicitud}/aprobar', [SolicitudExtensionController::class, 'aprobar']);
                 Route::put('/extensiones/{solicitud}/rechazar', [SolicitudExtensionController::class, 'rechazar']);
 
-                // ✅ Horarios (Schedules) - Gestión completa (admin/supervisor)
+                // ✅ Horarios
                 Route::post('/schedules', [ScheduleController::class, 'store']);
                 Route::delete('/schedules/{id}', [ScheduleController::class, 'destroy'])->whereNumber('id');
+
+                // ✅ Asistencias - ELIMINAR
+                Route::delete('/asistencias/{id}', [AsistenciaController::class, 'destroy'])->whereNumber('id');
             });
         });
+        ;
 
         // ================= EMPLEADO / ADMIN / SUPERVISOR =================
         Route::middleware('role:empleado,admin,supervisor')->group(function () {

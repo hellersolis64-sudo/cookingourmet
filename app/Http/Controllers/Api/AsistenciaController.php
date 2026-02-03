@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 
 class AsistenciaController extends Controller
 {
@@ -24,7 +25,7 @@ class AsistenciaController extends Controller
     private function colType(string $col): ?string
     {
         try {
-            return Schema::getColumnType($this->table, $col);
+            return Schema::getColumnType($col);
         } catch (\Throwable $e) {
             return null;
         }
@@ -75,175 +76,190 @@ class AsistenciaController extends Controller
         return null;
     }
 
-    /** POST /api/asistencias/entrada */
-    /** POST /api/asistencias/entrada */
-public function entrada(Request $request)
-{
-    $u = $request->user();
-    $now = now();
+    /**
+     * ✅ Decide si requiere foto según access_mode (set por tu middleware)
+     * - safeModes => dentro/permitido => NO foto
+     * - lo demás => afuera => SÍ foto
+     */
+    private function requiresPhoto(Request $request): bool
+    {
+        $mode = strtolower((string) $request->attributes->get('access_mode', 'viewer'));
 
-    // ✅ Foto obligatoria
-    if (!$request->hasFile('photo')) {
-        return ApiResponse::error('Debes enviar una foto (photo) para marcar entrada.', null, 422);
+        // 🔧 AJUSTA AQUÍ si tu middleware usa otros nombres
+        $safeModes = ['institution', 'inside', 'allowed', 'full'];
+
+        return !in_array($mode, $safeModes, true);
     }
-    $request->validate([
-        'photo' => ['required', 'image', 'max:5120'], // 5MB
-    ]);
 
-    $cols = $this->colsOrFail();
-    $userCol = $cols['userCol'];
-    $dateCol = $cols['dateCol'];
-    $inCol   = $cols['inCol'];
-    $outCol  = $cols['outCol'];
+    /** POST /api/asistencias/entrada */
+    public function entrada(Request $request)
+    {
+        $u = $request->user();
+        $now = now();
 
-    $todayKey = $this->formatForColumn($dateCol, Carbon::today(), 'date');
+        $needPhoto = $this->requiresPhoto($request);
 
-    // ✅ datos de seguridad
-    $ip = $request->ip();
-    $mode = (string) $request->attributes->get('access_mode', 'viewer');
+        // ✅ Validación condicional
+        $request->validate([
+            'photo' => [$needPhoto ? 'required' : 'nullable', 'image', 'max:5120'], // 5MB
+        ]);
 
-    // ✅ guardar foto (public/attendance)
-    $photoPath = $request->file('photo')->store('attendance', 'public');
+        // ✅ datos de seguridad
+        $ip = $request->ip();
+        $mode = (string) $request->attributes->get('access_mode', 'viewer');
 
-    try {
-        $result = DB::transaction(function () use (
-            $u, $now, $todayKey,
-            $userCol, $dateCol, $inCol, $outCol,
-            $photoPath, $ip, $mode
-        ) {
-            $row = DB::table($this->table)
-                ->where($userCol, $u->id)
-                ->where($dateCol, $todayKey)
-                ->lockForUpdate()
-                ->first();
+        // ✅ guardar foto SOLO si vino
+        $photoPath = null;
+        if ($request->hasFile('photo')) {
+            $photoPath = $request->file('photo')->store('attendance', 'public');
+        } elseif ($needPhoto) {
+            return ApiResponse::error('Debes enviar una foto (photo) para marcar entrada.', null, 422);
+        }
 
-            if ($row) {
-                $outVal = $row->{$outCol} ?? null;
+        $cols = $this->colsOrFail();
+        $userCol = $cols['userCol'];
+        $dateCol = $cols['dateCol'];
+        $inCol   = $cols['inCol'];
+        $outCol  = $cols['outCol'];
 
-                if (!empty($row->{$inCol}) && empty($outVal)) {
-                    return ['ok' => false, 'code' => 409, 'msg' => 'Ya marcaste entrada hoy. Falta salida.'];
+        $todayKey = $this->formatForColumn($dateCol, Carbon::today(), 'date');
+
+        try {
+            $result = DB::transaction(function () use (
+                $u, $now, $todayKey,
+                $userCol, $dateCol, $inCol, $outCol,
+                $photoPath, $ip, $mode
+            ) {
+                $row = DB::table($this->table)
+                    ->where($userCol, $u->id)
+                    ->where($dateCol, $todayKey)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($row) {
+                    $outVal = $row->{$outCol} ?? null;
+
+                    if (!empty($row->{$inCol}) && empty($outVal)) {
+                        return ['ok' => false, 'code' => 409, 'msg' => 'Ya marcaste entrada hoy. Falta salida.'];
+                    }
+
+                    return ['ok' => false, 'code' => 409, 'msg' => 'Ya registraste asistencia completa hoy.'];
                 }
 
-                return ['ok' => false, 'code' => 409, 'msg' => 'Ya registraste asistencia completa hoy.'];
+                $insert = [
+                    $userCol => $u->id,
+                    $dateCol => $todayKey,
+                    $inCol   => $this->formatForColumn($inCol, $now, 'time'),
+                    $outCol  => null,
+                ];
+
+                // ✅ Guardar columnas extra si existen
+                if ($photoPath && Schema::hasColumn($this->table, 'entry_photo_path')) $insert['entry_photo_path'] = $photoPath;
+                if (Schema::hasColumn($this->table, 'entry_ip'))        $insert['entry_ip'] = $ip;
+                if (Schema::hasColumn($this->table, 'entry_mode'))      $insert['entry_mode'] = $mode;
+
+                if (Schema::hasColumn($this->table, 'created_at')) $insert['created_at'] = now();
+                if (Schema::hasColumn($this->table, 'updated_at')) $insert['updated_at'] = now();
+
+                $id = DB::table($this->table)->insertGetId($insert);
+
+                $created = DB::table($this->table)->where('id', $id)->first();
+                return ['ok' => true, 'data' => $created];
+            });
+
+            if (!$result['ok']) {
+                if ($photoPath) Storage::disk('public')->delete($photoPath);
+                return ApiResponse::error($result['msg'], null, $result['code']);
             }
 
-            $insert = [
-                $userCol => $u->id,
-                $dateCol => $todayKey,
-                $inCol   => $this->formatForColumn($inCol, $now, 'time'),
-                $outCol  => null,
-            ];
-
-            // ✅ si existen columnas nuevas, guardarlas (no rompe si faltan)
-            if (Schema::hasColumn($this->table, 'entry_photo_path')) $insert['entry_photo_path'] = $photoPath;
-            if (Schema::hasColumn($this->table, 'entry_ip'))        $insert['entry_ip'] = $ip;
-            if (Schema::hasColumn($this->table, 'entry_mode'))      $insert['entry_mode'] = $mode;
-
-            if (Schema::hasColumn($this->table, 'created_at')) $insert['created_at'] = now();
-            if (Schema::hasColumn($this->table, 'updated_at')) $insert['updated_at'] = now();
-
-            $id = DB::table($this->table)->insertGetId($insert);
-
-            $created = DB::table($this->table)->where('id', $id)->first();
-            return ['ok' => true, 'data' => $created];
-        });
-
-        if (!$result['ok']) {
-            // si falló por conflicto, borra la foto guardada
-            Storage::disk('public')->delete($photoPath);
-            return ApiResponse::error($result['msg'], null, $result['code']);
+            return ApiResponse::success($result['data'], 'Entrada registrada');
+        } catch (\Throwable $e) {
+            if ($photoPath) Storage::disk('public')->delete($photoPath);
+            return ApiResponse::error('Error registrando entrada', null, 500);
         }
-
-        return ApiResponse::success($result['data'], 'Entrada registrada');
-
-    } catch (\Throwable $e) {
-        // si algo explotó, borra la foto para no dejar basura
-        Storage::disk('public')->delete($photoPath);
-        return ApiResponse::error('Error registrando entrada', null, 500);
     }
-}
-
 
     /** POST /api/asistencias/salida */
-    /** POST /api/asistencias/salida */
-public function salida(Request $request)
-{
-    $u = $request->user();
-    $now = now();
+    public function salida(Request $request)
+    {
+        $u = $request->user();
+        $now = now();
 
-    // ✅ Foto obligatoria
-    if (!$request->hasFile('photo')) {
-        return ApiResponse::error('Debes enviar una foto (photo) para marcar salida.', null, 422);
-    }
-    $request->validate([
-        'photo' => ['required', 'image', 'max:5120'], // 5MB
-    ]);
+        $needPhoto = $this->requiresPhoto($request);
 
-    $cols = $this->colsOrFail();
-    $userCol = $cols['userCol'];
-    $dateCol = $cols['dateCol'];
-    $inCol   = $cols['inCol'];
-    $outCol  = $cols['outCol'];
+        // ✅ Validación condicional
+        $request->validate([
+            'photo' => [$needPhoto ? 'required' : 'nullable', 'image', 'max:5120'], // 5MB
+        ]);
 
-    $todayKey = $this->formatForColumn($dateCol, Carbon::today(), 'date');
+        // ✅ datos de seguridad
+        $ip = $request->ip();
+        $mode = (string) $request->attributes->get('access_mode', 'viewer');
 
-    // ✅ datos de seguridad
-    $ip = $request->ip();
-    $mode = (string) $request->attributes->get('access_mode', 'viewer');
-
-    // ✅ guardar foto (public/attendance)
-    $photoPath = $request->file('photo')->store('attendance', 'public');
-
-    try {
-        $result = DB::transaction(function () use (
-            $u, $now, $todayKey,
-            $userCol, $dateCol, $inCol, $outCol,
-            $photoPath, $ip, $mode
-        ) {
-            $row = DB::table($this->table)
-                ->where($userCol, $u->id)
-                ->where($dateCol, $todayKey)
-                ->lockForUpdate()
-                ->first();
-
-            if (!$row || empty($row->{$inCol})) {
-                return ['ok' => false, 'code' => 409, 'msg' => 'No puedes marcar salida sin entrada hoy.'];
-            }
-
-            if (!empty($row->{$outCol})) {
-                return ['ok' => false, 'code' => 409, 'msg' => 'Ya marcaste salida hoy.'];
-            }
-
-            $update = [
-                $outCol => $this->formatForColumn($outCol, $now, 'time'),
-            ];
-
-            // ✅ si existen columnas nuevas, guardarlas (no rompe si faltan)
-            if (Schema::hasColumn($this->table, 'exit_photo_path')) $update['exit_photo_path'] = $photoPath;
-            if (Schema::hasColumn($this->table, 'exit_ip'))         $update['exit_ip'] = $ip;
-            if (Schema::hasColumn($this->table, 'exit_mode'))       $update['exit_mode'] = $mode;
-
-            if (Schema::hasColumn($this->table, 'updated_at')) $update['updated_at'] = now();
-
-            DB::table($this->table)->where('id', $row->id)->update($update);
-
-            $updated = DB::table($this->table)->where('id', $row->id)->first();
-            return ['ok' => true, 'data' => $updated];
-        });
-
-        if (!$result['ok']) {
-            Storage::disk('public')->delete($photoPath);
-            return ApiResponse::error($result['msg'], null, $result['code']);
+        // ✅ guardar foto SOLO si vino
+        $photoPath = null;
+        if ($request->hasFile('photo')) {
+            $photoPath = $request->file('photo')->store('attendance', 'public');
+        } elseif ($needPhoto) {
+            return ApiResponse::error('Debes enviar una foto (photo) para marcar salida.', null, 422);
         }
 
-        return ApiResponse::success($result['data'], 'Salida registrada');
+        $cols = $this->colsOrFail();
+        $userCol = $cols['userCol'];
+        $dateCol = $cols['dateCol'];
+        $inCol   = $cols['inCol'];
+        $outCol  = $cols['outCol'];
 
-    } catch (\Throwable $e) {
-        Storage::disk('public')->delete($photoPath);
-        return ApiResponse::error('Error registrando salida', null, 500);
+        $todayKey = $this->formatForColumn($dateCol, Carbon::today(), 'date');
+
+        try {
+            $result = DB::transaction(function () use (
+                $u, $now, $todayKey,
+                $userCol, $dateCol, $inCol, $outCol,
+                $photoPath, $ip, $mode
+            ) {
+                $row = DB::table($this->table)
+                    ->where($userCol, $u->id)
+                    ->where($dateCol, $todayKey)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$row || empty($row->{$inCol})) {
+                    return ['ok' => false, 'code' => 409, 'msg' => 'No puedes marcar salida sin entrada hoy.'];
+                }
+
+                if (!empty($row->{$outCol})) {
+                    return ['ok' => false, 'code' => 409, 'msg' => 'Ya marcaste salida hoy.'];
+                }
+
+                $update = [
+                    $outCol => $this->formatForColumn($outCol, $now, 'time'),
+                ];
+
+                // ✅ Guardar columnas extra si existen
+                if ($photoPath && Schema::hasColumn($this->table, 'exit_photo_path')) $update['exit_photo_path'] = $photoPath;
+                if (Schema::hasColumn($this->table, 'exit_ip'))         $update['exit_ip'] = $ip;
+                if (Schema::hasColumn($this->table, 'exit_mode'))       $update['exit_mode'] = $mode;
+
+                if (Schema::hasColumn($this->table, 'updated_at')) $update['updated_at'] = now();
+
+                DB::table($this->table)->where('id', $row->id)->update($update);
+
+                $updated = DB::table($this->table)->where('id', $row->id)->first();
+                return ['ok' => true, 'data' => $updated];
+            });
+
+            if (!$result['ok']) {
+                if ($photoPath) Storage::disk('public')->delete($photoPath);
+                return ApiResponse::error($result['msg'], null, $result['code']);
+            }
+
+            return ApiResponse::success($result['data'], 'Salida registrada');
+        } catch (\Throwable $e) {
+            if ($photoPath) Storage::disk('public')->delete($photoPath);
+            return ApiResponse::error('Error registrando salida', null, 500);
+        }
     }
-}
-
 
     /** GET /api/mi/asistencia/hoy */
     public function miHoy(Request $request)
@@ -257,7 +273,16 @@ public function salida(Request $request)
             ->where($cols['dateCol'], $todayKey)
             ->first();
 
-        return ApiResponse::success($row, 'Asistencia de hoy');
+        $mode = (string) $request->attributes->get('access_mode', 'viewer');
+        $requiresPhoto = $this->requiresPhoto($request);
+
+        return ApiResponse::success([
+            'hoy' => $row,
+            'context' => [
+                'mode' => $mode,
+                'requires_photo' => $requiresPhoto,
+            ],
+        ], 'Asistencia de hoy');
     }
 
     /** GET /api/mi/asistencia?from=YYYY-MM-DD&to=YYYY-MM-DD&page= */
@@ -282,9 +307,9 @@ public function salida(Request $request)
     /**
      * GET /api/asistencias (admin/supervisor)
      * Params:
-     * - usuario: texto (nombre/apellido/email)  ✅
+     * - usuario: texto (nombre/apellido/email)
      * - usuario_id: int (opcional)
-     * - from / to  (o fecha_from / fecha_to)   ✅
+     * - from / to  (o fecha_from / fecha_to)
      * - per_page, page
      */
     public function index(Request $request)
@@ -301,7 +326,6 @@ public function salida(Request $request)
         $from = $request->input('from') ?? $request->input('fecha_from');
         $to   = $request->input('to')   ?? $request->input('fecha_to');
 
-        // texto usuario (nombre/apellido/email) — si está vacío => TODOS ✅
         $usuarioQ = trim((string)($request->input('usuario') ?? ''));
 
         $q = DB::table($this->table)
@@ -316,12 +340,10 @@ public function salida(Request $request)
             $q->addSelect("users.$lastNameCol as usuario_apellido");
         }
 
-        // usuario_id opcional
         if ($request->filled('usuario_id')) {
             $q->where("{$this->table}.{$cols['userCol']}", (int) $request->input('usuario_id'));
         }
 
-        // filtro por texto (si viene). Si no viene => TODOS
         if ($usuarioQ !== '') {
             $q->where(function ($w) use ($usuarioQ, $lastNameCol) {
                 $w->where('users.name', 'like', "%{$usuarioQ}%")
@@ -333,7 +355,6 @@ public function salida(Request $request)
             });
         }
 
-        // fechas
         if ($from) $q->whereDate("{$this->table}.{$cols['dateCol']}", '>=', $from);
         if ($to)   $q->whereDate("{$this->table}.{$cols['dateCol']}", '<=', $to);
 
@@ -344,4 +365,54 @@ public function salida(Request $request)
 
         return ApiResponse::success($data, 'Asistencias');
     }
+
+
+   /** DELETE /api/asistencias/{id} (admin/supervisor + full) */
+public function destroy(Request $request, $id)
+{
+    $user = $request->user();
+    if (!$this->isAdminOrSupervisor($user)) {
+        return ApiResponse::error('No autorizado', null, 403);
+    }
+
+    $id = (int) $id;
+
+    try {
+        $result = DB::transaction(function () use ($id) {
+
+            $row = DB::table($this->table)->where('id', $id)->lockForUpdate()->first();
+
+            if (!$row) {
+                return ['ok' => false, 'code' => 404, 'msg' => 'Asistencia no encontrada.'];
+            }
+
+            // paths de fotos si existen
+            $entryPhoto = property_exists($row, 'entry_photo_path') ? ($row->entry_photo_path ?? null) : null;
+            $exitPhoto  = property_exists($row, 'exit_photo_path')  ? ($row->exit_photo_path ?? null)  : null;
+
+            DB::table($this->table)->where('id', $id)->delete();
+
+            return [
+                'ok' => true,
+                'deleted' => $row,
+                'entryPhoto' => $entryPhoto,
+                'exitPhoto' => $exitPhoto,
+            ];
+        });
+
+        if (!$result['ok']) {
+            return ApiResponse::error($result['msg'], null, $result['code']);
+        }
+
+        // borrar fotos (fuera de la transacción)
+        if (!empty($result['entryPhoto'])) Storage::disk('public')->delete($result['entryPhoto']);
+        if (!empty($result['exitPhoto']))  Storage::disk('public')->delete($result['exitPhoto']);
+
+        return ApiResponse::success($result['deleted'], 'Asistencia eliminada');
+    } catch (\Throwable $e) {
+        return ApiResponse::error('Error eliminando asistencia', null, 500);
+    }
+}
+
+
 }

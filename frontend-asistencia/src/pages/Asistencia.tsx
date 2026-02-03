@@ -18,6 +18,7 @@ import {
   X,
   Camera,
   Upload,
+  Trash2,
 } from "lucide-react";
 
 import { motion, AnimatePresence } from "framer-motion";
@@ -34,6 +35,15 @@ type AsistenciaRow = {
   usuario_nombre?: string | null;
   usuario_email?: string | null;
   usuario_apellido?: string | null;
+};
+
+// Nuevo payload para /mi/asistencia/hoy
+type MiHoyPayload = {
+  hoy: AsistenciaRow | null;
+  context?: {
+    mode?: string | null;
+    requires_photo?: boolean;
+  };
 };
 
 // ================= helpers =================
@@ -197,7 +207,7 @@ function AttendancePromptModal({
   );
 }
 
-// ================= Modal FOTO obligatoria =================
+// ================= Modal FOTO =================
 type PhotoMode = "entry" | "exit";
 
 function AttendancePhotoModal({
@@ -288,7 +298,7 @@ function AttendancePhotoModal({
           >
             <div className="px-5 py-4 bg-black text-white flex items-center justify-between">
               <div className="font-extrabold tracking-tight">
-                Foto obligatoria — {mode === "entry" ? "Entrada" : "Salida"}
+                {mode === "entry" ? "Foto requerida — Entrada" : "Foto requerida — Salida"}
               </div>
               <button
                 type="button"
@@ -365,7 +375,7 @@ function AttendancePhotoModal({
                 </div>
               ) : (
                 <div className="text-sm text-black/60">
-                  Debes <b>capturar</b> o <b>subir</b> una foto del lugar antes de registrar.
+                  Debes <b>capturar</b> o <b>subir</b> una foto antes de registrar.
                 </div>
               )}
 
@@ -391,7 +401,88 @@ function AttendancePhotoModal({
               </div>
 
               <div className="text-[11px] text-black/45">
-                * Foto real del lugar por seguridad (fuera o dentro).
+                * Foto real del lugar por seguridad (solo cuando estás fuera).
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+// ================= Modal Confirm Delete =================
+function ConfirmDeleteModal({
+  open,
+  loading,
+  title,
+  subtitle,
+  onClose,
+  onConfirm,
+}: {
+  open: boolean;
+  loading: boolean;
+  title: string;
+  subtitle?: string;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="fixed inset-0 z-[99999] bg-black/70 grid place-items-center p-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onMouseDown={loading ? undefined : onClose}
+        >
+          <motion.div
+            initial={{ scale: 0.96, y: 10, opacity: 0 }}
+            animate={{ scale: 1, y: 0, opacity: 1 }}
+            exit={{ scale: 0.98, y: 8, opacity: 0 }}
+            className="w-full max-w-md rounded-3xl bg-white border border-black/10 shadow-2xl overflow-hidden"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 bg-black text-white flex items-center justify-between">
+              <div className="font-extrabold tracking-tight">Confirmar</div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="h-9 w-9 rounded-2xl bg-white/10 hover:bg-white/20 grid place-items-center disabled:opacity-60"
+                disabled={loading}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="p-5">
+              <div className="text-lg font-extrabold text-black">{title}</div>
+              {subtitle ? <div className="mt-1 text-sm text-black/60">{subtitle}</div> : null}
+
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  disabled={loading}
+                  className="h-10 px-4 rounded-2xl border border-black/15 font-extrabold hover:bg-black/5 disabled:opacity-60"
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="button"
+                  onClick={onConfirm}
+                  disabled={loading}
+                  className="h-10 px-4 rounded-2xl bg-[#FE003E] text-white font-extrabold hover:brightness-95 disabled:opacity-60 flex items-center gap-2"
+                >
+                  {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Eliminar
+                </button>
+              </div>
+
+              <div className="mt-3 text-[11px] text-black/45">
+                Esta acción no se puede deshacer.
               </div>
             </div>
           </motion.div>
@@ -413,6 +504,9 @@ export default function Asistencia() {
   const [now, setNow] = useState(() => new Date());
   const [isAdmin, setIsAdmin] = useState(false);
 
+  // ✅ si requiere foto (según backend)
+  const [requiresPhoto, setRequiresPhoto] = useState<boolean>(true);
+
   // filtros admin
   const [usuarioQ, setUsuarioQ] = useState<string>("");
   const [from, setFrom] = useState<string>(() => toISODate(new Date()));
@@ -433,12 +527,17 @@ export default function Asistencia() {
 
   // ✅ “no molestar más hoy” (por día)
   const dayKey = useMemo(() => toISODate(new Date()), []);
-  const ENTRY_SHOWN_KEY = `att_entry_shown_${dayKey}`; // entrada modal mostrado (1 vez)
-  const EXIT_SNOOZE_KEY = `att_exit_snooze_${dayKey}`; // canceló salida → ya no mostrar hoy
+  const ENTRY_SHOWN_KEY = `att_entry_shown_${dayKey}`;
+  const EXIT_SNOOZE_KEY = `att_exit_snooze_${dayKey}`;
 
-  // ✅ Foto obligatoria
+  // ✅ Foto modal
   const [photoOpen, setPhotoOpen] = useState(false);
   const [photoMode, setPhotoMode] = useState<PhotoMode>("entry");
+
+  // ✅ delete admin
+  const [delOpen, setDelOpen] = useState(false);
+  const [delLoading, setDelLoading] = useState(false);
+  const [delRow, setDelRow] = useState<AsistenciaRow | null>(null);
 
   useEffect(() => {
     const admin = isAdminFromStorage();
@@ -451,8 +550,12 @@ export default function Asistencia() {
     setLoading(true);
     try {
       if (!isAdmin) {
-        const r1 = await api.get<ApiResponse<AsistenciaRow | null>>("/mi/asistencia/hoy");
-        setHoy(r1.data.data ?? null);
+        const r1 = await api.get<ApiResponse<MiHoyPayload>>("/mi/asistencia/hoy");
+        const payload = r1.data.data;
+
+        setHoy(payload?.hoy ?? null);
+        // por defecto: si no viene, asumimos true para seguridad
+        setRequiresPhoto(Boolean(payload?.context?.requires_photo ?? true));
 
         const r2 = await api.get<ApiResponse<any>>("/mi/asistencia", { params: { per_page: 20, page: 1 } });
         setHist(extractItems<AsistenciaRow>(r2.data.data));
@@ -478,12 +581,35 @@ export default function Asistencia() {
   async function postWithPhoto(url: string, file: File) {
     const fd = new FormData();
     fd.append("photo", file);
-    // puedes agregar datos extra si quieres
-    // fd.append("source", access.mode);
+    await api.post(url, fd, { headers: { "Content-Type": "multipart/form-data" } });
+  }
 
-    await api.post(url, fd, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+  async function markEntryNoPhoto() {
+    setError(null);
+    setMarkingIn(true);
+    try {
+      await api.post("/asistencias/entrada");
+      localStorage.setItem(ENTRY_SHOWN_KEY, "1");
+      await cargar();
+    } catch (e: any) {
+      setError(e?.response?.data?.message ?? "Error marcando entrada");
+    } finally {
+      setMarkingIn(false);
+    }
+  }
+
+  async function markExitNoPhoto() {
+    setError(null);
+    setMarkingOut(true);
+    try {
+      await api.post("/asistencias/salida");
+      sessionStorage.setItem(EXIT_SNOOZE_KEY, "1");
+      await cargar();
+    } catch (e: any) {
+      setError(e?.response?.data?.message ?? "Error marcando salida");
+    } finally {
+      setMarkingOut(false);
+    }
   }
 
   function requestEntry() {
@@ -491,6 +617,14 @@ export default function Asistencia() {
       setError("Modo visor: no puedes marcar asistencia fuera de la institución sin actividad programada.");
       return;
     }
+
+    // ✅ dentro (no requiere foto) => marcar directo
+    if (!requiresPhoto) {
+      markEntryNoPhoto();
+      return;
+    }
+
+    // ✅ fuera => foto
     setPhotoMode("entry");
     setPhotoOpen(true);
   }
@@ -500,6 +634,14 @@ export default function Asistencia() {
       setError("Modo visor: no puedes marcar asistencia fuera de la institución sin actividad programada.");
       return;
     }
+
+    // ✅ dentro (no requiere foto) => marcar directo
+    if (!requiresPhoto) {
+      markExitNoPhoto();
+      return;
+    }
+
+    // ✅ fuera => foto
     setPhotoMode("exit");
     setPhotoOpen(true);
   }
@@ -522,7 +664,6 @@ export default function Asistencia() {
       return;
     }
 
-    // exit
     setMarkingOut(true);
     try {
       await postWithPhoto("/asistencias/salida", file);
@@ -536,16 +677,21 @@ export default function Asistencia() {
     }
   }
 
-  // ✅ auto flujo: ahora NO marca automático sin foto
+  // ✅ auto flujo: solo si requiere foto (afuera)
   async function runAutoFlow() {
     if (isAdmin) return;
-    if (!canAttendance) return; // viewer: no hacer flujo
+    if (!canAttendance) return;
     if (ranFlowRef.current) return;
     ranFlowRef.current = true;
 
     try {
-      const r = await api.get<ApiResponse<AsistenciaRow | null>>("/mi/asistencia/hoy");
-      const row = r.data.data ?? null;
+      const r = await api.get<ApiResponse<MiHoyPayload>>("/mi/asistencia/hoy");
+      const payload = r.data.data;
+      const row = payload?.hoy ?? null;
+      const needPhoto = Boolean(payload?.context?.requires_photo ?? true);
+
+      // si estamos dentro, no molestamos con prompts
+      if (!needPhoto) return;
 
       const hasEntry = Boolean(row?.hora_entrada_real);
       const hasExit = Boolean(row?.hora_salida_real);
@@ -577,6 +723,28 @@ export default function Asistencia() {
     }
   }
 
+  async function onDeleteRow(row: AsistenciaRow) {
+    setDelRow(row);
+    setDelOpen(true);
+  }
+
+  async function confirmDelete() {
+    if (!delRow) return;
+    setDelLoading(true);
+    setError(null);
+
+    try {
+      await api.delete(`/asistencias/${delRow.id}`);
+      setDelOpen(false);
+      setDelRow(null);
+      await cargar();
+    } catch (e: any) {
+      setError(e?.response?.data?.message ?? "Error eliminando asistencia");
+    } finally {
+      setDelLoading(false);
+    }
+  }
+
   useEffect(() => {
     cargar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -599,6 +767,24 @@ export default function Asistencia() {
 
   return (
     <div className="space-y-4">
+      {/* ✅ MODAL eliminar */}
+      <ConfirmDeleteModal
+        open={delOpen}
+        loading={delLoading}
+        title={`¿Eliminar asistencia #${delRow?.id ?? ""}?`}
+        subtitle={
+          delRow
+            ? `Fecha: ${delRow.fecha} — Entrada: ${delRow.hora_entrada_real ?? "—"} — Salida: ${delRow.hora_salida_real ?? "—"}`
+            : undefined
+        }
+        onClose={() => {
+          if (delLoading) return;
+          setDelOpen(false);
+          setDelRow(null);
+        }}
+        onConfirm={confirmDelete}
+      />
+
       {/* ✅ MODAL entrada/salida */}
       <AttendancePromptModal
         open={promptOpen}
@@ -609,7 +795,7 @@ export default function Asistencia() {
         onAcceptEntry={() => {
           setPromptOpen(false);
           setPromptMode(null);
-          requestEntry(); // ✅ abre foto
+          requestEntry();
         }}
         onCancelExit={() => {
           sessionStorage.setItem(EXIT_SNOOZE_KEY, "1");
@@ -621,7 +807,7 @@ export default function Asistencia() {
           try {
             setPromptOpen(false);
             setPromptMode(null);
-            requestExit(); // ✅ abre foto
+            requestExit();
           } finally {
             setPromptLoading(false);
           }
@@ -665,6 +851,12 @@ export default function Asistencia() {
               <div className="text-xs text-black/60">
                 {isAdmin ? "Filtra por nombre/apellido/correo o deja vacío para ver TODOS" : "Registro de hoy + historial"}
               </div>
+
+              {!isAdmin ? (
+                <div className="mt-1 text-[11px] text-black/55">
+                  {requiresPhoto ? "Fuera de institución: foto requerida." : "Dentro de institución: no requiere foto."}
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -688,9 +880,7 @@ export default function Asistencia() {
           <div className="mt-4 rounded-3xl border border-black/10 p-4 bg-black/[0.02]">
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div className="sm:col-span-1">
-                <label className="block text-xs font-extrabold text-black/60 mb-1">
-                  Buscar usuario (nombre/apellido/correo)
-                </label>
+                <label className="block text-xs font-extrabold text-black/60 mb-1">Buscar usuario (nombre/apellido/correo)</label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-black/45" />
                   <input
@@ -793,7 +983,15 @@ export default function Asistencia() {
                   "flex items-center gap-2",
                 ].join(" ")}
                 type="button"
-                title={!canAttendance ? "Modo visor" : entradaOk ? "Ya marcaste entrada" : "Marcar entrada (foto obligatoria)"}
+                title={
+                  !canAttendance
+                    ? "Modo visor"
+                    : entradaOk
+                    ? "Ya marcaste entrada"
+                    : requiresPhoto
+                    ? "Marcar entrada (foto requerida fuera)"
+                    : "Marcar entrada (sin foto dentro)"
+                }
               >
                 {markingIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
                 {entradaOk ? "Entrada marcada" : "Marcar entrada"}
@@ -815,7 +1013,9 @@ export default function Asistencia() {
                     ? "Primero marca entrada"
                     : salidaOk
                     ? "Ya marcaste salida"
-                    : "Marcar salida (foto obligatoria)"
+                    : requiresPhoto
+                    ? "Marcar salida (foto requerida fuera)"
+                    : "Marcar salida (sin foto dentro)"
                 }
               >
                 {markingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
@@ -844,6 +1044,7 @@ export default function Asistencia() {
                 <th className="text-left px-3 py-2">Fecha</th>
                 <th className="text-left px-3 py-2">Entrada</th>
                 <th className="text-left px-3 py-2">Salida</th>
+                {isAdmin && <th className="text-right px-3 py-2">Acciones</th>}
               </tr>
             </thead>
 
@@ -901,13 +1102,32 @@ export default function Asistencia() {
                         <span>{r.hora_salida_real ?? "—"}</span>
                       </div>
                     </td>
+
+                    {isAdmin && (
+                      <td className="px-3 py-2 text-right">
+                        <button
+                          type="button"
+                          onClick={() => onDeleteRow(r)}
+                          disabled={delLoading}
+                          className={[
+                            "inline-flex items-center gap-2 h-9 px-3 rounded-2xl border border-black/15",
+                            "font-extrabold hover:bg-black/5",
+                            "disabled:opacity-60 disabled:cursor-not-allowed",
+                          ].join(" ")}
+                          title="Eliminar asistencia"
+                        >
+                          <Trash2 className="h-4 w-4 text-[#FE003E]" />
+                          Eliminar
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 );
               })}
 
               {hist.length === 0 && (
                 <tr>
-                  <td className="px-3 py-3 text-black/60" colSpan={isAdmin ? 4 : 3}>
+                  <td className="px-3 py-3 text-black/60" colSpan={isAdmin ? 5 : 3}>
                     Sin registros.
                   </td>
                 </tr>
