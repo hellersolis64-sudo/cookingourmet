@@ -10,49 +10,50 @@ class ForceCors
     private function allowedOrigins(): array
     {
         return array_values(array_filter([
-            env('FRONTEND_URL'), // ✅ en Railway pon FRONTEND_URL=https://eloquent-recreation-production.up.railway.app
-            'http://localhost:5173', // ✅ dev local
+            env('FRONTEND_URL'),
+            'http://localhost:5173',
         ]));
     }
 
-    private function pickOrigin(?string $origin): ?string
+    private function resolveOrigin(?string $origin): ?string
     {
-        if (!$origin) return null;
-        return in_array($origin, $this->allowedOrigins(), true) ? $origin : null;
+        if (!$origin) return env('FRONTEND_URL') ?: null;
+
+        $allowed = $this->allowedOrigins();
+        return in_array($origin, $allowed, true) ? $origin : (env('FRONTEND_URL') ?: null);
+    }
+
+    private function applyCors($response, ?string $origin): void
+    {
+        if ($origin) {
+            // ✅ fuerza el origin correcto (sobreescribe el que haya)
+            $response->headers->set('Access-Control-Allow-Origin', $origin);
+            $response->headers->set('Vary', 'Origin');
+        }
+
+        $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+        $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, X-CSRF-TOKEN');
+        $response->headers->set('Access-Control-Allow-Credentials', 'true');
+        $response->headers->set('Access-Control-Max-Age', '86400');
     }
 
     public function handle(Request $request, Closure $next)
     {
         $origin = $request->headers->get('Origin');
-        $allowOrigin = $this->pickOrigin($origin);
+        $chosen = $this->resolveOrigin($origin);
 
-        // Preflight OPTIONS (antes de auth)
-        if ($request->getMethod() === 'OPTIONS') {
-            $resp = response('', 204)
-                ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
-                ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept')
-                ->header('Access-Control-Allow-Credentials', 'true');
-
-            if ($allowOrigin) {
-                $resp->headers->set('Access-Control-Allow-Origin', $allowOrigin);
-                $resp->headers->set('Vary', 'Origin');
-            }
-
+        // ✅ Preflight
+        if ($request->isMethod('OPTIONS')) {
+            $resp = response('', 204);
+            $this->applyCors($resp, $chosen);
             return $resp;
         }
 
         $response = $next($request);
 
-        // Solo para API
+        // ✅ Para API aplica siempre
         if ($request->is('api/*')) {
-            if ($allowOrigin) {
-                $response->headers->set('Access-Control-Allow-Origin', $allowOrigin);
-                $response->headers->set('Vary', 'Origin');
-            }
-
-            $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-            $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
-            $response->headers->set('Access-Control-Allow-Credentials', 'true');
+            $this->applyCors($response, $chosen);
         }
 
         return $response;
