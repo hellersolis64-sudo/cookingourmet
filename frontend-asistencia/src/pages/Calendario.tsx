@@ -3,8 +3,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
+import esLocale from "@fullcalendar/core/locales/es";
 import { api } from "../services/api";
 import { getUser } from "../services/auth";
+import {
+  RefreshCw,
+  Loader2,
+  X,
+  CalendarDays,
+  Users,
+  LayoutGrid,
+} from "lucide-react";
 
 type ApiResponse<T> = { success: boolean; message: string; data: T };
 
@@ -37,7 +46,6 @@ type Schedule = {
   ends_at: string;
   allow_remote: boolean | number;
 
-  // ✅ para que sea igual que Tarea en acciones/estado (si backend ya lo envía)
   hora_inicio_real?: string | null;
   hora_fin_real?: string | null;
   inicio_real_at?: string | null;
@@ -100,6 +108,7 @@ function splitISODateTime(v: string) {
 }
 
 function getErrorMessage(e: any, fallback: string) {
+  if (e?.name === "CanceledError" || e?.code === "ERR_CANCELED") return "";
   const data = e?.response?.data;
   if (!data) return fallback;
 
@@ -117,11 +126,16 @@ function getErrorMessage(e: any, fallback: string) {
 }
 
 /** =========================
- *  ESTADOS (sirve para Task y Schedule si comparten campos)
+ *  ESTADOS
  *  ========================= */
 type Status = "pending" | "running" | "done";
 
-function getStatus(t: Pick<Tarea, "enviada_en" | "comentario_cierre" | "hora_fin_real" | "fin_real_at" | "hora_inicio_real" | "inicio_real_at">): Status {
+function getStatus(
+  t: Pick<
+    Tarea,
+    "enviada_en" | "comentario_cierre" | "hora_fin_real" | "fin_real_at" | "hora_inicio_real" | "inicio_real_at"
+  >
+): Status {
   if (t.enviada_en || t.comentario_cierre || t.hora_fin_real || t.fin_real_at) return "done";
   if ((t.hora_inicio_real || t.inicio_real_at) && !t.hora_fin_real && !t.fin_real_at) return "running";
   return "pending";
@@ -173,30 +187,37 @@ function isAdminLikeFromStorage(): boolean {
   );
 }
 
+/** ✅ Hook simple para detectar móvil */
+function useIsMobile(breakpointPx = 640) {
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia(`(max-width: ${breakpointPx}px)`).matches;
+  });
+
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${breakpointPx}px)`);
+    const onChange = () => setIsMobile(mq.matches);
+    onChange();
+    if (mq.addEventListener) mq.addEventListener("change", onChange);
+    else mq.addListener(onChange);
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener("change", onChange);
+      else mq.removeListener(onChange);
+    };
+  }, [breakpointPx]);
+
+  return isMobile;
+}
+
 /** =========================
- *  MODAL TAREA (sirve para normal + remota)
+ *  MODAL
  *  ========================= */
 type ModalKind = "task" | "schedule";
 type TaskModalTarget = {
   kind: ModalKind;
-  // tarea “normal”
   tarea?: Tarea;
-  // schedule remoto
   schedule?: Schedule;
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 function TaskModal({
   open,
@@ -209,7 +230,6 @@ function TaskModal({
   onClose: () => void;
   onUpdated: () => void;
 }) {
-  // ✅ Hooks SIEMPRE arriba (sin returns antes)
   const [err, setErr] = useState<string | null>(null);
 
   const [saving, setSaving] = useState(false);
@@ -223,7 +243,6 @@ function TaskModal({
   const [comentario, setComentario] = useState("");
   const [fileInputKey, setFileInputKey] = useState(0);
 
-  // ✅ Datos “seguros” aunque target sea null
   const kind: ModalKind = (target?.kind ?? "task") as ModalKind;
   const isSchedule = kind === "schedule";
   const raw: any = isSchedule ? target?.schedule : target?.tarea;
@@ -237,11 +256,9 @@ function TaskModal({
   const id = Number(raw?.id ?? 0);
 
   const planned = useMemo(() => {
-    // ✅ si no hay raw todavía, devolvemos defaults (sin crashear)
     if (!raw) {
       return {
         title: "",
-        desc: null as string | null,
         date: "",
         start: "",
         end: "",
@@ -254,15 +271,12 @@ function TaskModal({
       const t = raw as Tarea;
       return {
         title: t.titulo,
-        desc: t.descripcion,
         date: t.fecha_programada ?? "",
         start: (t.hora_inicio_programada ?? "").slice(0, 5),
         end: (t.hora_fin_programada ?? "").slice(0, 5),
         remoteInfo: null as null | { allow: boolean; type: string | null },
         startsAtISO:
-          t.fecha_programada && t.hora_inicio_programada
-            ? combineDateTime(t.fecha_programada, t.hora_inicio_programada)
-            : "",
+          t.fecha_programada && t.hora_inicio_programada ? combineDateTime(t.fecha_programada, t.hora_inicio_programada) : "",
       };
     }
 
@@ -273,7 +287,6 @@ function TaskModal({
 
     return {
       title: s.title ?? "Actividad",
-      desc: null,
       date: st.date ?? "",
       start: (st.time ?? "").slice(0, 5),
       end: (en.time ?? "").slice(0, 5),
@@ -316,7 +329,6 @@ function TaskModal({
   }
 
   useEffect(() => {
-    // ✅ el hook se llama siempre, pero adentro salimos si no hay data
     if (!open || !raw || !id) return;
 
     const controller = new AbortController();
@@ -404,7 +416,8 @@ function TaskModal({
       onUpdated();
       onClose();
     } catch (e: any) {
-      setErr(getErrorMessage(e, "Error iniciando"));
+      const msg = getErrorMessage(e, "Error iniciando");
+      if (msg) setErr(msg);
     } finally {
       setSaving(false);
     }
@@ -436,7 +449,8 @@ function TaskModal({
       setFileInputKey((k) => k + 1);
       await refreshFiles();
     } catch (e: any) {
-      setErr(getErrorMessage(e, "Error subiendo evidencias"));
+      const msg = getErrorMessage(e, "Error subiendo evidencias");
+      if (msg) setErr(msg);
     } finally {
       setUploading(false);
     }
@@ -468,25 +482,35 @@ function TaskModal({
       onUpdated();
       onClose();
     } catch (e: any) {
-      setErr(getErrorMessage(e, "Error enviando tarea"));
+      const msg = getErrorMessage(e, "Error enviando tarea");
+      if (msg) setErr(msg);
     } finally {
       setSaving(false);
     }
   }
 
-  // ✅ Recién aquí se retorna null (después de llamar hooks)
   if (!open || !target || !raw) return null;
 
   return (
-    <div onClick={onClose} className="fixed inset-0 bg-black/60 grid place-items-center p-4 z-50">
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl p-5 border border-black/10">
-        <div className="flex items-start justify-between gap-3">
-          <div>
+    <div
+      onClick={onClose}
+      className="fixed inset-0 bg-black/60 grid place-items-center p-3 sm:p-4 z-50"
+      role="dialog"
+      aria-modal="true"
+    >
+      {/* ✅ CLAVE PARA MÓVIL: max-h + overflow-hidden + body scroll */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-black/10 overflow-hidden max-h-[92dvh] flex flex-col"
+      >
+        {/* Header fijo */}
+        <div className="p-4 sm:p-5 border-b border-black/10 flex items-start justify-between gap-3">
+          <div className="min-w-0">
             <div className="text-xs font-extrabold text-black/60">
               {isSchedule ? "Tarea remota" : "Tarea"} #{id}
             </div>
 
-            <div className="text-lg font-extrabold text-black">
+            <div className="text-lg font-extrabold text-black break-words">
               {planned.title}
               {planned.remoteInfo && (
                 <span className="ml-2 text-xs font-extrabold text-black/50">
@@ -495,161 +519,183 @@ function TaskModal({
               )}
             </div>
 
-            <div className="text-sm text-black/70 mt-1">
+            <div className="text-sm text-black/70 mt-1 break-words">
               {planned.date} • {planned.start} - {planned.end}
             </div>
 
             <div className={`inline-flex mt-2 text-xs font-extrabold px-2 py-1 rounded-full border ${st.softBg} ${st.softBd} ${st.softTx}`}>
-              {st.label}
-              {locked ? " (Bloqueada)" : ""}
+              {st.label}{locked ? " (Bloqueada)" : ""}
             </div>
           </div>
 
-          <button onClick={onClose} className="text-black/50 hover:text-black">✕</button>
+          <button
+            onClick={onClose}
+            className="h-9 w-9 rounded-2xl hover:bg-black/5 grid place-items-center shrink-0"
+            title="Cerrar"
+            type="button"
+          >
+            <X className="h-4 w-4 text-black/70" />
+          </button>
         </div>
 
-        <div className="mt-4 grid sm:grid-cols-3 gap-3">
-          <div className="rounded-2xl border border-black/10 p-3">
-            <div className="text-xs font-extrabold text-black/60">Inicio real</div>
-            <div className="font-extrabold text-black">
-              {raw.hora_inicio_real ?? (raw.inicio_real_at ? new Date(raw.inicio_real_at).toLocaleTimeString() : "—")}
+        {/* Body scrolleable */}
+        <div className="p-4 sm:p-5 overflow-auto">
+          <div className="grid sm:grid-cols-3 gap-3">
+            <div className="rounded-2xl border border-black/10 p-3">
+              <div className="text-xs font-extrabold text-black/60">Inicio real</div>
+              <div className="font-extrabold text-black">
+                {raw.hora_inicio_real ?? (raw.inicio_real_at ? new Date(raw.inicio_real_at).toLocaleTimeString("es-PE") : "—")}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-black/10 p-3">
+              <div className="text-xs font-extrabold text-black/60">Fin real</div>
+              <div className="font-extrabold text-black">
+                {raw.hora_fin_real ?? (raw.fin_real_at ? new Date(raw.fin_real_at).toLocaleTimeString("es-PE") : "—")}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-black/10 p-3">
+              <div className="text-xs font-extrabold text-black/60">Cronómetro</div>
+              <div className="font-extrabold text-black">{running ? fmt(elapsed) : "00:00:00"}</div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-black/10 p-3">
-            <div className="text-xs font-extrabold text-black/60">Fin real</div>
-            <div className="font-extrabold text-black">
-              {raw.hora_fin_real ?? (raw.fin_real_at ? new Date(raw.fin_real_at).toLocaleTimeString() : "—")}
+          {/* Evidencias */}
+          <div className="mt-5 rounded-2xl border border-black/10 p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="font-extrabold text-black">Evidencias</div>
+              <button
+                onClick={refreshFiles}
+                disabled={loadingFiles}
+                className="rounded-2xl border border-black/15 px-3 py-2 text-sm font-extrabold hover:bg-black/5 disabled:opacity-60 w-full sm:w-auto flex items-center justify-center gap-2"
+                type="button"
+              >
+                {loadingFiles ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                Refrescar
+              </button>
             </div>
-          </div>
 
-          <div className="rounded-2xl border border-black/10 p-3">
-            <div className="text-xs font-extrabold text-black/60">Cronómetro</div>
-            <div className="font-extrabold text-black">{running ? fmt(elapsed) : "00:00:00"}</div>
-          </div>
-        </div>
-
-        <div className="mt-5 rounded-2xl border border-black/10 p-4">
-          <div className="flex items-center justify-between gap-2">
-            <div className="font-extrabold text-black">Evidencias</div>
-            <button
-              onClick={refreshFiles}
-              disabled={loadingFiles}
-              className="rounded-xl border border-black/15 px-3 py-2 text-sm font-extrabold hover:bg-black/5 disabled:opacity-60"
-            >
-              {loadingFiles ? "..." : "Refrescar"}
-            </button>
-          </div>
-
-          {loadingFiles ? (
-            <div className="mt-2 text-sm text-black/60">Cargando evidencias...</div>
-          ) : safeArchivos.length === 0 ? (
-            <div className="mt-2 text-sm text-black/60">Aún no hay evidencias.</div>
-          ) : (
-            <ul className="mt-3 space-y-2">
-              {safeArchivos.map((a) => (
-                <li key={a.id} className="rounded-xl border border-black/10 p-3 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    {isImage(a.mime) && (
-                      <img
-                        src={fileHref(a.url)}
-                        alt={a.nombre_original}
-                        className="w-12 h-12 rounded-xl object-cover border border-black/10"
-                        loading="lazy"
-                      />
-                    )}
-                    <div className="min-w-0">
-                      <div className="font-extrabold text-black truncate">{a.nombre_original}</div>
-                      <div className="text-xs text-black/60">{a.mime}</div>
+            {loadingFiles ? (
+              <div className="mt-2 text-sm text-black/60 flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Cargando evidencias...
+              </div>
+            ) : safeArchivos.length === 0 ? (
+              <div className="mt-2 text-sm text-black/60">Aún no hay evidencias.</div>
+            ) : (
+              <ul className="mt-3 space-y-2">
+                {safeArchivos.map((a) => (
+                  <li key={a.id} className="rounded-2xl border border-black/10 p-3 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      {isImage(a.mime) && (
+                        <img
+                          src={fileHref(a.url)}
+                          alt={a.nombre_original}
+                          className="w-12 h-12 rounded-2xl object-cover border border-black/10 shrink-0"
+                          loading="lazy"
+                        />
+                      )}
+                      <div className="min-w-0">
+                        <div className="font-extrabold text-black truncate">{a.nombre_original}</div>
+                        <div className="text-xs text-black/60">{a.mime}</div>
+                      </div>
                     </div>
-                  </div>
 
-                  <a href={fileHref(a.url)} target="_blank" rel="noreferrer" className="rounded-xl bg-black text-white px-3 py-2 text-sm font-extrabold hover:opacity-90">
-                    Ver
-                  </a>
-                </li>
-              ))}
-            </ul>
-          )}
+                    <a
+                      href={fileHref(a.url)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-2xl bg-black text-white px-3 py-2 text-sm font-extrabold hover:opacity-90 shrink-0"
+                    >
+                      Ver
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
 
-          <div className="mt-3 grid gap-2">
-            <input
-              key={fileInputKey}
-              type="file"
-              multiple
-              accept="image/*,application/pdf"
+            <div className="mt-3 grid gap-2">
+              <input
+                key={fileInputKey}
+                type="file"
+                multiple
+                accept="image/*,application/pdf"
+                disabled={locked}
+                onChange={(e) => setSelected(e.target.files)}
+                className="block w-full text-sm"
+              />
+
+              <button
+                onClick={subirEvidencias}
+                disabled={locked || uploading || !selected || selected.length === 0}
+                className="rounded-2xl border border-black/15 px-4 py-2 font-extrabold hover:bg-black/5 disabled:opacity-60 w-full"
+                type="button"
+              >
+                {uploading ? "Subiendo..." : "Subir evidencias"}
+              </button>
+            </div>
+          </div>
+
+          {/* Comentario final */}
+          <div className="mt-4">
+            <label className="block text-xs font-extrabold text-black/60 mb-1">
+              Comentario final (antes de enviar)
+            </label>
+            <textarea
+              value={comentario}
+              onChange={(e) => setComentario(e.target.value)}
               disabled={locked}
-              onChange={(e) => setSelected(e.target.files)}
-              className="block w-full text-sm"
+              rows={4}
+              className="w-full rounded-2xl border border-black/15 px-3 py-2 outline-none focus:ring-2 focus:ring-[#FE003E]/30 focus:border-[#FE003E]/30"
+              placeholder="Cuéntanos cómo te fue, qué se hizo, problemas, resultados..."
             />
-
-            <button
-              onClick={subirEvidencias}
-              disabled={locked || uploading || !selected || selected.length === 0}
-              className="rounded-xl border border-black/15 px-4 py-2 font-extrabold hover:bg-black/5 disabled:opacity-60"
-            >
-              {uploading ? "Subiendo..." : "Subir evidencias"}
-            </button>
           </div>
-        </div>
 
-        <div className="mt-4">
-          <label className="block text-xs font-extrabold text-black/60 mb-1">Comentario final (antes de enviar)</label>
-          <textarea
-            value={comentario}
-            onChange={(e) => setComentario(e.target.value)}
-            disabled={locked}
-            rows={4}
-            className="w-full rounded-2xl border border-black/15 px-3 py-2 outline-none focus:ring-2 focus:ring-[#FE003E]/30 focus:border-[#FE003E]"
-            placeholder="Cuéntanos cómo te fue, qué se hizo, problemas, resultados..."
-          />
-        </div>
-
-        {err && (
-          <div className="mt-3 rounded-xl border border-[#FE003E]/30 bg-[#FE003E]/10 px-3 py-2 text-sm">
-            <b className="text-[#FE003E]">Error:</b> {err}
-          </div>
-        )}
-
-        <div className="mt-4 flex flex-wrap gap-2 justify-end">
-          {status === "pending" && !locked && (
-            <button onClick={iniciar} disabled={saving} className="rounded-xl bg-[#FE003E] text-white px-4 py-2 font-extrabold hover:opacity-95 disabled:opacity-60">
-              Iniciar
-            </button>
+          {err && (
+            <div className="mt-3 rounded-2xl border border-[#FE003E]/30 bg-[#FE003E]/10 px-3 py-2 text-sm break-words">
+              <b className="text-[#FE003E]">Error:</b> {err}
+            </div>
           )}
 
-          {!locked && (
-            <button onClick={enviarTarea} disabled={saving || uploading} className="rounded-xl bg-black text-white px-4 py-2 font-extrabold hover:opacity-90 disabled:opacity-60">
-              {saving ? "Enviando..." : "Enviar / Finalizar"}
-            </button>
-          )}
+          {/* Acciones */}
+          <div className="mt-4 flex flex-col sm:flex-row gap-2 justify-end">
+            {status === "pending" && !locked && (
+              <button
+                onClick={iniciar}
+                disabled={saving}
+                className="rounded-2xl bg-[#FE003E] text-white px-4 py-2 font-extrabold hover:brightness-95 disabled:opacity-60 w-full sm:w-auto"
+                type="button"
+              >
+                Iniciar
+              </button>
+            )}
+
+            {!locked && (
+              <button
+                onClick={enviarTarea}
+                disabled={saving || uploading}
+                className="rounded-2xl bg-black text-white px-4 py-2 font-extrabold hover:opacity-90 disabled:opacity-60 w-full sm:w-auto"
+                type="button"
+              >
+                {saving ? "Enviando..." : "Enviar / Finalizar"}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /** =========================
  *  PAGE
  *  ========================= */
 export default function Calendario() {
   const [error, setError] = useState<string | null>(null);
+  const isMobile = useIsMobile(640);
+
+  const [loading, setLoading] = useState(false);
 
   const [isAdmin, setIsAdmin] = useState(false);
   const [usuarios, setUsuarios] = useState<UsuarioLite[]>([]);
@@ -657,6 +703,8 @@ export default function Calendario() {
 
   const [tareas, setTareas] = useState<Tarea[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
+
+  const calendarRef = useRef<FullCalendar | null>(null);
 
   const [range, setRange] = useState<{ from: string; to: string }>(() => {
     const today = toISODate(new Date());
@@ -666,12 +714,19 @@ export default function Calendario() {
   const [openTask, setOpenTask] = useState(false);
   const [target, setTarget] = useState<TaskModalTarget | null>(null);
 
-  // ✅ debounce + abort para no saturar backend
+  // ✅ móvil día / PC semana
+  const [view, setView] = useState<"timeGridDay" | "timeGridWeek">(() => (isMobile ? "timeGridDay" : "timeGridWeek"));
+
   const debounceRef = useRef<any>(null);
   const abortRef = useRef<AbortController | null>(null);
   const reqSeq = useRef(0);
 
-  // ✅ memo: admin solo 1 vez
+  useEffect(() => {
+    setView(isMobile ? "timeGridDay" : "timeGridWeek");
+    const apiCal = calendarRef.current?.getApi();
+    if (apiCal) apiCal.changeView(isMobile ? "timeGridDay" : "timeGridWeek");
+  }, [isMobile]);
+
   useEffect(() => {
     const admin = isAdminLikeFromStorage();
     setIsAdmin(admin);
@@ -688,8 +743,7 @@ export default function Calendario() {
           params: { per_page: 200, page: 1 },
           signal: controller.signal,
         });
-        const payload = u.data?.data;
-        setUsuarios(extractItems<UsuarioLite>(payload));
+        setUsuarios(extractItems<UsuarioLite>(u.data?.data));
       } catch {
         setUsuarios([]);
       }
@@ -728,6 +782,7 @@ export default function Calendario() {
       abortRef.current = controller;
 
       setError(null);
+      setLoading(true);
 
       try {
         const [ts, ss] = await Promise.all([
@@ -754,12 +809,14 @@ export default function Calendario() {
         ]);
 
         if (mySeq !== reqSeq.current) return;
-
         setTareas(ts);
         setSchedules(ss);
       } catch (e: any) {
         if (mySeq !== reqSeq.current) return;
-        setError(getErrorMessage(e, "Error cargando calendario"));
+        const msg = getErrorMessage(e, "Error cargando calendario");
+        if (msg) setError(msg);
+      } finally {
+        if (mySeq === reqSeq.current) setLoading(false);
       }
     }, 250);
   }
@@ -789,7 +846,6 @@ export default function Calendario() {
         };
       });
 
-    // Remotas: mismo estado/colores por STATUS, no por “tipo”
     const scheduleEvents = schedules.map((s) => {
       const ui = statusUI(getStatus(s));
       const allow = s.allow_remote === true || s.allow_remote === 1;
@@ -817,85 +873,135 @@ export default function Calendario() {
     abortRef.current = controller;
 
     setError(null);
+    setLoading(true);
+
     try {
       const [ts, ss] = await Promise.all([fetchTareas(range, isAdmin, usuarioId), fetchSchedules(isAdmin, usuarioId)]);
-
       if (mySeq !== reqSeq.current) return;
       setTareas(ts);
       setSchedules(ss);
     } catch (e: any) {
       if (mySeq !== reqSeq.current) return;
-      setError(getErrorMessage(e, "Error cargando calendario"));
+      const msg = getErrorMessage(e, "Error cargando calendario");
+      if (msg) setError(msg);
+    } finally {
+      if (mySeq === reqSeq.current) setLoading(false);
     }
   }
 
+  function goToday() {
+    const apiCal = calendarRef.current?.getApi();
+    if (apiCal) apiCal.today();
+  }
+
+  function applyView(next: "timeGridDay" | "timeGridWeek") {
+    setView(next);
+    const apiCal = calendarRef.current?.getApi();
+    if (apiCal) apiCal.changeView(next);
+  }
+
+  const todayISO = toISODate(new Date());
+
   return (
-    <div className="space-y-3">
+    <div className="w-full max-w-[1200px] mx-auto px-3 sm:px-4 space-y-3">
       {error && (
-        <div className="rounded-2xl border border-[#FE003E]/30 bg-[#FE003E]/10 px-4 py-3 text-sm">
+        <div className="rounded-2xl border border-[#FE003E]/30 bg-[#FE003E]/10 px-4 py-3 text-sm break-words">
           <b className="text-[#FE003E]">Error:</b> {error}
         </div>
       )}
 
-      <div className="bg-white rounded-2xl p-4 border border-black/10 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <div className="text-xl font-extrabold text-black">Calendario</div>
-            <div className="text-sm text-black/60">Vista semanal 24 horas</div>
-
-            <div className="mt-2 flex flex-wrap gap-2 text-xs font-extrabold">
-              <span className="inline-flex items-center gap-2 rounded-full border border-black/10 px-2 py-1">
-                <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#FE003E" }} />
-                Por iniciar
-              </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-black/10 px-2 py-1">
-                <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#2563EB" }} />
-                En proceso
-              </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-black/10 px-2 py-1">
-                <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#16A34A" }} />
-                Finalizada
+      <div className="bg-white rounded-3xl p-4 sm:p-5 border border-black/10 shadow-sm">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-xl font-extrabold text-black flex items-center gap-2">
+              <CalendarDays className="h-5 w-5 text-black/60" />
+              Calendario
+              <span className="ml-1 text-xs font-black px-2 py-1 rounded-full bg-black/5 border border-black/10 text-black/70">
+                Hoy: <span className="text-[#FE003E]">{todayISO}</span>
               </span>
             </div>
+            <div className="text-sm text-black/60">Celular: Día · PC: Semana (7 días)</div>
           </div>
 
-          <div className="flex flex-wrap gap-2 items-center justify-end">
+          <div className="flex flex-col sm:flex-row flex-wrap gap-2 items-stretch sm:items-center justify-end">
             {isAdmin && (
-              <select
-                value={usuarioId}
-                onChange={(e) => setUsuarioId(e.target.value ? Number(e.target.value) : "")}
-                className="rounded-xl border border-black/15 px-3 py-2 font-bold bg-white"
-                disabled={usuarios.length === 0}
-                title={usuarios.length === 0 ? "No se pudo cargar usuarios o aún está cargando" : "Filtrar por usuario"}
-              >
-                <option value="">{usuarios.length ? "(Yo) Mis eventos" : "Cargando usuarios..."}</option>
-                {usuarios.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name} ({u.email})
-                  </option>
-                ))}
-              </select>
+              <div className="flex items-center gap-2">
+                <span className="hidden sm:inline-flex items-center gap-2 text-xs font-extrabold text-black/60">
+                  <Users className="h-4 w-4" />
+                  Usuario
+                </span>
+                <select
+                  value={usuarioId}
+                  onChange={(e) => setUsuarioId(e.target.value ? Number(e.target.value) : "")}
+                  className="rounded-2xl border border-black/15 px-3 py-2 font-bold bg-white w-full sm:w-[320px]"
+                  disabled={usuarios.length === 0}
+                >
+                  <option value="">{usuarios.length ? "(Yo) Mis eventos" : "Cargando usuarios..."}</option>
+                  {usuarios.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name} ({u.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
             )}
 
-            <button onClick={cargarManual} className="rounded-xl border border-black/15 px-4 py-2 font-extrabold hover:bg-black/5">
-              Refrescar
+            <button
+              onClick={() => applyView(view === "timeGridWeek" ? "timeGridDay" : "timeGridWeek")}
+              className="rounded-2xl border border-black/15 px-4 py-2 font-extrabold hover:bg-black/5 flex items-center justify-center gap-2"
+              type="button"
+            >
+              <LayoutGrid className="h-4 w-4" />
+              {view === "timeGridWeek" ? "Día" : "Semana"}
+            </button>
+
+            <button
+              onClick={goToday}
+              className="rounded-2xl border border-black/15 px-4 py-2 font-extrabold hover:bg-black/5"
+              type="button"
+            >
+              Hoy
+            </button>
+
+            <button
+              onClick={cargarManual}
+              disabled={loading}
+              className="rounded-2xl bg-[#FE003E] text-white px-4 py-2 font-extrabold hover:brightness-95 disabled:opacity-60 flex items-center justify-center gap-2"
+              type="button"
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              {loading ? "Actualizando…" : "Refrescar"}
             </button>
           </div>
         </div>
 
-        <div className="mt-4">
+        <div className="mt-4 calendarPro">
           <FullCalendar
+            ref={calendarRef as any}
+            locale={esLocale}                 // ✅ Español
             plugins={[timeGridPlugin, interactionPlugin]}
-            initialView="timeGridWeek"
-            height="auto"
+            initialView={view}
+
+            // ✅ Semana de 7 días en PC
+            views={{
+              timeGridWeek: { duration: { days: 7 } },
+            }}
+            weekends={true}
+            hiddenDays={[]}
+            firstDay={1}                      // ✅ Lunes como primer día (Perú)
+
             nowIndicator={true}
             allDaySlot={false}
             slotMinTime="00:00:00"
             slotMaxTime="24:00:00"
             slotDuration="00:30:00"
             expandRows={true}
-            weekends={true}
+            height="auto"
+
             events={events}
+
+            eventTimeFormat={{ hour: "2-digit", minute: "2-digit", hour12: false }}
+
             datesSet={(arg) => {
               const from = toISODate(arg.start);
               const endDate = new Date(arg.end.getTime() - 24 * 60 * 60 * 1000);
@@ -906,6 +1012,7 @@ export default function Calendario() {
                 return { from, to };
               });
             }}
+
             eventClick={(info) => {
               const kind = (info.event.extendedProps as any)?.kind as ModalKind;
 

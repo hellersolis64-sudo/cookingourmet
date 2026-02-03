@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* =========================
+   Animación
+   ========================= */
 @keyframes pulse-soft {
   0% { transform: scale(1); opacity: 0.8; }
   50% { transform: scale(1.2); opacity: 1; }
@@ -8,4 +11,117 @@
 
 .animate-pulse {
   animation: pulse-soft 1.5s infinite ease-in-out;
+}
+
+/* =========================
+   ✅ Component classes (reutilizables)
+   (SIN @apply de clases custom)
+   ========================= */
+@layer components {
+  .card {
+    @apply bg-white rounded-3xl p-5 border border-black/10 shadow-sm;
+  }
+
+  .card-title {
+    @apply text-xl font-extrabold text-black;
+  }
+
+  .muted {
+    @apply text-xs text-black/60;
+  }
+
+  .input {
+    @apply w-full rounded-2xl border border-black/15 px-3 py-2 outline-none
+    focus:ring-2 focus:ring-[#FE003E]/30 focus:border-[#FE003E]/30;
+  }
+
+  .textarea {
+    @apply w-full rounded-2xl border border-black/15 px-3 py-2 outline-none
+    focus:ring-2 focus:ring-[#FE003E]/30 focus:border-[#FE003E]/30;
+  }
+
+  /* ✅ base button: esta clase se usa DIRECTAMENTE en el JSX */
+  .btn {
+    @apply rounded-2xl px-4 py-2 font-extrabold transition flex items-center gap-2 justify-center;
+  }
+
+  /* ✅ variantes: NO hacen @apply btn, porque Tailwind no permite */
+  .btn-primary {
+    @apply rounded-2xl px-4 py-2 font-extrabold transition flex items-center gap-2 justify-center
+    bg-[#FE003E] text-white hover:brightness-95 disabled:opacity-60;
+  }
+
+  .btn-outline {
+    @apply rounded-2xl px-4 py-2 font-extrabold transition flex items-center gap-2 justify-center
+    border border-black/15 hover:bg-black/5;
+  }
+
+  .btn-danger {
+    @apply rounded-2xl px-4 py-2 font-extrabold transition flex items-center gap-2 justify-center
+    bg-black text-white hover:opacity-90;
+  }
+
+  .alert-error {
+    @apply rounded-2xl border border-[#FE003E]/30 bg-[#FE003E]/10 px-4 py-3 text-sm flex gap-2;
+  }
+
+  .badge-pending {
+    @apply inline-flex mt-3 text-xs font-black px-2.5 py-1 rounded-full
+    bg-[#FE003E]/10 text-[#FE003E] border border-[#FE003E]/20 items-center gap-1.5;
+  }
+}
+
+/* =========================
+   FullCalendar PRO
+   ========================= */
+.calendarPro .fc {
+  --fc-border-color: rgba(0, 0, 0, 0.10);
+  --fc-page-bg-color: transparent;
+  --fc-today-bg-color: rgba(254, 0, 62, 0.06);
+}
+
+.calendarPro .fc .fc-day-today {
+  background: rgba(254, 0, 62, 0.06) !important;
+}
+
+.calendarPro .fc .fc-col-header-cell.fc-day-today {
+  background: rgba(254, 0, 62, 0.12) !important;
+}
+
+.calendarPro .fc .fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion {
+  color: #FE003E !important;
+  font-weight: 900 !important;
+}
+
+.calendarPro .fc .fc-timegrid-now-indicator-line {
+  border-color: #FE003E !important;
+  border-width: 2px !important;
+}
+
+.calendarPro .fc .fc-timegrid-now-indicator-arrow {
+  border-color: #FE003E !important;
+}
+
+@media (max-width: 640px) {
+  .calendarPro .fc .fc-toolbar-title {
+    font-size: 1rem;
+  }
+
+  .calendarPro .fc .fc-col-header-cell-cushion {
+    font-size: 0.8rem;
+  }
+
+  .calendarPro .fc .fc-timegrid-slot-label {
+    font-size: 0.75rem;
+  }
+
+  .calendarPro .fc .fc-event-title {
+    font-size: 12px;
+    line-height: 1.1;
+    white-space: normal;
+  }
+
+  .calendarPro .fc .fc-event {
+    padding: 2px 4px;
+  }
 }
