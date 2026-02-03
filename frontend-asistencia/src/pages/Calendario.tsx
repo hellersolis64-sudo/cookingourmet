@@ -306,7 +306,9 @@ function TaskModal({
 
   const safeArchivos = Array.isArray(archivos) ? archivos : extractItems<Archivo>(archivos);
 
-  const BACKEND_URL = String(import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
+  const BACKEND_URL = String(import.meta.env.VITE_BACKEND_URL || "")
+  .replace(/\/$/, "")
+  .replace(/\/api$/, ""); // ✅ evita /api/storage
 
   function fileHref(url: string) {
     if (!url) return "#";
