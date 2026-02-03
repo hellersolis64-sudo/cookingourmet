@@ -10,7 +10,7 @@ use App\Http\Controllers\Api\SolicitudExtensionController;
 use App\Http\Controllers\Api\SolicitudExtensionQueryController;
 use App\Http\Controllers\Api\TareaArchivoController;
 use App\Http\Controllers\Api\UserController;
-// use App\Http\Controllers\Api\RoleController;
+use App\Http\Controllers\Api\RoleController; // ✅ ACTIVADO
 use App\Http\Controllers\Api\UserListController;
 use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\PresenceController;
@@ -57,7 +57,7 @@ Route::middleware(['throttle:300,1'])->group(function () {
 
             // ✅ Lectura
             Route::get('/usuarios', [UserController::class, 'index']);
-            // Route::get('/roles', [RoleController::class, 'index']);
+            Route::get('/roles', [RoleController::class, 'index']); // ✅ NUEVO (arregla 405)
             Route::get('/tareas', [TareaController::class, 'index']);
             Route::get('/usuarios/{usuario}/tareas', [TareaController::class, 'tareasPorUsuario'])->whereNumber('usuario');
             Route::get('/asistencias', [AsistenciaController::class, 'index']);
@@ -66,17 +66,13 @@ Route::middleware(['throttle:300,1'])->group(function () {
 
             // ✅ Escritura (Bloqueada si el modo de acceso es 'viewer')
             Route::middleware('require.full')->group(function () {
-                Route::post('/usuarios', [UserController::class, 'store']);
+                Route::post('/usuarios', [UserController::class, 'store']); // ✅ crear usuario
                 Route::put('/extensiones/{solicitud}/aprobar', [SolicitudExtensionController::class, 'aprobar']);
                 Route::put('/extensiones/{solicitud}/rechazar', [SolicitudExtensionController::class, 'rechazar']);
 
                 // ✅ Horarios (Schedules) - Gestión completa (admin/supervisor)
                 Route::post('/schedules', [ScheduleController::class, 'store']);
                 Route::delete('/schedules/{id}', [ScheduleController::class, 'destroy'])->whereNumber('id');
-
-                // NOTA:
-                // El PUT /schedules/{id} lo dejamos también en el bloque empleado/admin/supervisor
-                // para que el empleado dueño pueda iniciar/finalizar su schedule.
             });
         });
 
@@ -129,8 +125,8 @@ Route::middleware(['throttle:300,1'])->group(function () {
                 Route::delete('/tarea-archivos/{archivo}', [TareaArchivoController::class, 'destroy'])->whereNumber('archivo');
 
                 // ✅ Schedules como tareas (acciones + evidencias)
-                Route::put('/schedules/{id}', [ScheduleController::class, 'update'])->whereNumber('id');          // iniciar/actualizar (dueño o admin)
-                Route::patch('/schedules/{id}/enviar', [ScheduleController::class, 'enviar'])->whereNumber('id'); // finalizar
+                Route::put('/schedules/{id}', [ScheduleController::class, 'update'])->whereNumber('id');
+                Route::patch('/schedules/{id}/enviar', [ScheduleController::class, 'enviar'])->whereNumber('id');
 
                 // Archivos schedules
                 Route::post('/schedules/{id}/archivos', [ScheduleArchivoController::class, 'store'])->whereNumber('id');
