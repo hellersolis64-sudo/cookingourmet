@@ -125,3 +125,174 @@
     padding: 2px 4px;
   }
 }
+
+
+
+
+
+
+
+/* =========================
+   ✅ EXTRA UI (NO BORRAR LO EXISTENTE)
+   Pega esto al final del archivo
+   ========================= */
+
+@layer components {
+  /* ---------- Layout helpers ---------- */
+  .page {
+    @apply p-4;
+  }
+
+  .container-max {
+    @apply max-w-6xl mx-auto;
+  }
+
+  .section {
+    @apply bg-white rounded-3xl p-5 border border-black/10 shadow-sm;
+  }
+
+  .section-header {
+    @apply flex flex-col sm:flex-row sm:items-center justify-between gap-3;
+  }
+
+  .section-title {
+    @apply text-xl font-extrabold text-black;
+  }
+
+  .divider {
+    @apply border-t border-black/10;
+  }
+
+  /* ---------- Tables ---------- */
+  .table-wrap {
+    @apply mt-4 overflow-auto rounded-2xl border border-black/10;
+  }
+
+  .table {
+    @apply w-full text-sm;
+  }
+
+  .table thead {
+    @apply bg-black text-white;
+  }
+
+  .table th {
+    @apply text-left px-3 py-2 font-black;
+  }
+
+  .table td {
+    @apply px-3 py-3;
+  }
+
+  .table-row {
+    @apply border-t border-black/10 transition;
+  }
+
+  .table-row-zebra {
+    @apply bg-black/[0.01];
+  }
+
+  .table-row-hover {
+    @apply hover:bg-black/[0.03];
+  }
+
+  .row-clickable {
+    @apply cursor-pointer;
+  }
+
+  /* ---------- Avatar ---------- */
+  .avatar {
+    @apply h-9 w-9 rounded-2xl bg-black text-white grid place-items-center font-black;
+  }
+
+  .avatar-lg {
+    @apply h-14 w-14 rounded-3xl bg-black text-white grid place-items-center font-black text-lg;
+  }
+
+  /* ---------- Icon button ---------- */
+  .icon-btn {
+    @apply h-9 w-9 rounded-2xl border border-black/15 bg-white grid place-items-center
+    hover:bg-black/5 transition focus:outline-none focus:ring-2 focus:ring-black/15;
+  }
+
+  .icon-btn-danger {
+    @apply h-9 w-9 rounded-2xl border border-[#FE003E]/25 bg-[#FE003E]/5 grid place-items-center
+    hover:bg-[#FE003E]/10 transition focus:outline-none focus:ring-2 focus:ring-[#FE003E]/25;
+  }
+
+  /* ---------- Badges (roles / estados) ---------- */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-black;
+  }
+
+  .badge-admin {
+    @apply bg-[#FE003E] text-white;
+  }
+
+  .badge-supervisor {
+    @apply bg-black text-white;
+  }
+
+  .badge-empleado {
+    @apply bg-emerald-600 text-white;
+  }
+
+  .badge-colaborador {
+    @apply bg-emerald-600 text-white;
+  }
+
+  .badge-estudiante {
+    @apply bg-slate-600 text-white;
+  }
+
+  .badge-neutral {
+    @apply bg-slate-600 text-white;
+  }
+
+  /* ---------- Profile blocks ---------- */
+  .profile-card {
+    @apply bg-white rounded-3xl p-6 border border-black/10 shadow-sm;
+  }
+
+  .profile-kpi {
+    @apply rounded-2xl border border-black/10 p-4;
+  }
+
+  .label-mini {
+    @apply text-xs font-black tracking-widest text-black/45;
+  }
+
+  .text-soft {
+    @apply text-black/60;
+  }
+
+  /* ---------- Skeleton ---------- */
+  .skeleton {
+    @apply animate-pulse bg-black/10 rounded;
+  }
+}
+
+/* =========================
+   ✅ Mejora visual de inputs (extra)
+   ========================= */
+input[type="date"],
+input[type="time"],
+select {
+  border-radius: 1rem;
+}
+
+/* =========================
+   ✅ Mejoras para focus (accesibilidad)
+   ========================= */
+:focus-visible {
+  outline: none;
+}
+
+/* Si quieres que todo tenga un ring suave */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  box-shadow: 0 0 0 4px rgba(254, 0, 62, 0.18);
+}

@@ -10,12 +10,12 @@ use App\Http\Controllers\Api\SolicitudExtensionController;
 use App\Http\Controllers\Api\SolicitudExtensionQueryController;
 use App\Http\Controllers\Api\TareaArchivoController;
 use App\Http\Controllers\Api\UserController;
-use App\Http\Controllers\Api\RoleController; // ✅ ACTIVADO
+use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\UserListController;
 use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\PresenceController;
 use App\Http\Controllers\Api\ScheduleController;
-use App\Http\Controllers\Api\ScheduleArchivoController; // ✅ NUEVO
+use App\Http\Controllers\Api\ScheduleArchivoController;
 
 /**
  * Rutas de la API - Proyecto PHP 8.2 / Laravel 12
@@ -57,16 +57,26 @@ Route::middleware(['throttle:300,1'])->group(function () {
 
             // ✅ Lectura
             Route::get('/usuarios', [UserController::class, 'index']);
+            Route::get('/usuarios/{id}', [UserController::class, 'show'])->whereNumber('id'); // ✅ opcional para editar
+
             Route::get('/roles', [RoleController::class, 'index']);
+
             Route::get('/tareas', [TareaController::class, 'index']);
             Route::get('/usuarios/{usuario}/tareas', [TareaController::class, 'tareasPorUsuario'])->whereNumber('usuario');
+
             Route::get('/asistencias', [AsistenciaController::class, 'index']);
             Route::get('/extensiones', [SolicitudExtensionQueryController::class, 'index']);
             Route::get('/schedules', [ScheduleController::class, 'index']);
 
             // ✅ Escritura (Bloqueada si el modo de acceso es 'viewer')
             Route::middleware('require.full')->group(function () {
+
+                // ✅ Usuarios (CRUD)
                 Route::post('/usuarios', [UserController::class, 'store']);
+                Route::put('/usuarios/{id}', [UserController::class, 'update'])->whereNumber('id');     // ✅ NUEVO
+                Route::delete('/usuarios/{id}', [UserController::class, 'destroy'])->whereNumber('id'); // ✅ NUEVO
+
+                // ✅ Extensiones
                 Route::put('/extensiones/{solicitud}/aprobar', [SolicitudExtensionController::class, 'aprobar']);
                 Route::put('/extensiones/{solicitud}/rechazar', [SolicitudExtensionController::class, 'rechazar']);
 
@@ -76,15 +86,21 @@ Route::middleware(['throttle:300,1'])->group(function () {
 
                 // ✅ Asistencias - ELIMINAR
                 Route::delete('/asistencias/{id}', [AsistenciaController::class, 'destroy'])->whereNumber('id');
+
+                // ✅ Roles (CRUD)
+                Route::post('/roles', [RoleController::class, 'store']);
+                Route::put('/roles/{id}', [RoleController::class, 'update'])->whereNumber('id');
+                Route::delete('/roles/{id}', [RoleController::class, 'destroy'])->whereNumber('id');
             });
         });
-        ;
 
         // ================= EMPLEADO / ADMIN / SUPERVISOR =================
-        Route::middleware('role:empleado,admin,supervisor')->group(function () {
+        // ✅ Si cambias "empleado" a "colaborador" en BD, aquí ya lo soporta.
+        Route::middleware('role:empleado,colaborador,admin,supervisor')->group(function () {
 
             // --------- LECTURA (Acceso permitido a todos los modos) ---------
             Route::get('/usuarios-chat', [UserListController::class, 'index']);
+
             Route::get('/conversations', [ChatController::class, 'conversations']);
             Route::get('/conversations/{conversation}/messages', [ChatController::class, 'messages']);
             Route::get('/typing', [PresenceController::class, 'whoTyping']);
@@ -93,13 +109,15 @@ Route::middleware(['throttle:300,1'])->group(function () {
             Route::get('/mi/tareas', [TareaController::class, 'misTareas']);
             Route::get('/tareas/{tarea}/historial-estados', [TareaController::class, 'historialEstados'])->whereNumber('tarea');
 
-            // ✅ Archivos tareas
+            // ✅ Archivos tareas (lectura)
             Route::get('/tareas/{tarea}/archivos', [TareaArchivoController::class, 'index'])->whereNumber('tarea');
             Route::get('/tarea-archivos/{archivo}/download', [TareaArchivoController::class, 'download'])->whereNumber('archivo');
 
+            // ✅ Asistencia (lectura)
             Route::get('/mi/asistencia/hoy', [AsistenciaController::class, 'miHoy']);
             Route::get('/mi/asistencia', [AsistenciaController::class, 'misRegistros']);
 
+            // ✅ Extensiones (lectura)
             Route::get('/mi/extensiones', [SolicitudExtensionQueryController::class, 'mine']);
 
             // ✅ Schedules (mis actividades)
@@ -116,6 +134,7 @@ Route::middleware(['throttle:300,1'])->group(function () {
                 Route::post('/conversations/direct', [ChatController::class, 'direct']);
                 Route::post('/conversations/{conversation}/messages', [ChatController::class, 'send']);
                 Route::post('/conversations/{conversation}/read', [ChatController::class, 'read']);
+
                 Route::post('/presence/ping', [PresenceController::class, 'ping']);
                 Route::post('/typing', [PresenceController::class, 'typing']);
 
@@ -124,19 +143,19 @@ Route::middleware(['throttle:300,1'])->group(function () {
                 Route::patch('/tareas/{tarea}/enviar', [TareaController::class, 'enviar'])->whereNumber('tarea');
                 Route::patch('/tareas/{tarea}/estado', [TareaController::class, 'cambiarEstado'])->whereNumber('tarea');
 
-                // Archivos tareas
+                // Archivos tareas (escritura)
                 Route::post('/tareas/{tarea}/archivos', [TareaArchivoController::class, 'store'])->whereNumber('tarea');
                 Route::delete('/tarea-archivos/{archivo}', [TareaArchivoController::class, 'destroy'])->whereNumber('archivo');
 
-                // ✅ Schedules como tareas (acciones + evidencias)
+                // ✅ Schedules como tareas
                 Route::put('/schedules/{id}', [ScheduleController::class, 'update'])->whereNumber('id');
                 Route::patch('/schedules/{id}/enviar', [ScheduleController::class, 'enviar'])->whereNumber('id');
 
-                // Archivos schedules
+                // Archivos schedules (escritura)
                 Route::post('/schedules/{id}/archivos', [ScheduleArchivoController::class, 'store'])->whereNumber('id');
                 Route::delete('/schedule-archivos/{archivo}', [ScheduleArchivoController::class, 'destroy'])->whereNumber('archivo');
 
-                // Extensiones
+                // Extensiones (escritura)
                 Route::post('/solicitudes-extension', [SolicitudExtensionController::class, 'store']);
             });
 

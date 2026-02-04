@@ -1,12 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
-import { Users, Search, RefreshCw, Loader2, AlertTriangle, Mail } from "lucide-react";
+import {
+  Users,
+  Search,
+  RefreshCw,
+  Loader2,
+  AlertTriangle,
+  Mail,
+  UserPlus,
+  ChevronRight,
+} from "lucide-react";
+
+type RolLite = { id: number; nombre: string };
 
 type Usuario = {
   id: number;
   name: string;
   email: string;
-  roles?: Array<string | { name?: string }>;
+  roles?: RolLite[];
   role?: string;
   role_name?: string;
 };
@@ -20,10 +32,9 @@ function extractItems(payload: any): Usuario[] {
 }
 
 function firstRole(u: Usuario): string {
-  const arr = Array.isArray(u.roles) ? u.roles : [];
-  const r0 = arr[0];
-  const fromRoles = typeof r0 === "string" ? r0 : String((r0 as any)?.name ?? "").trim();
-  return fromRoles || String(u.role_name ?? u.role ?? "").trim() || "—";
+  const r0 = Array.isArray(u.roles) ? u.roles[0] : null;
+  const fromRel = r0 ? String(r0.nombre ?? "").trim() : "";
+  return fromRel || String(u.role_name ?? u.role ?? "").trim() || "Sin Rol";
 }
 
 function initials(name?: string) {
@@ -39,8 +50,9 @@ function roleBadge(roleRaw: string) {
   const role = String(roleRaw || "").toLowerCase();
   if (role.includes("admin")) return "bg-[#FE003E] text-white";
   if (role.includes("super")) return "bg-black text-white";
-  if (role.includes("emple")) return "bg-emerald-600 text-white";
-  return "bg-slate-600 text-white";
+  if (role.includes("emple") || role.includes("colab")) return "bg-emerald-600 text-white";
+  if (role.includes("estu")) return "bg-slate-600 text-white";
+  return "bg-slate-500 text-white";
 }
 
 function SkeletonRow() {
@@ -59,17 +71,21 @@ function SkeletonRow() {
         <div className="h-3 w-48 bg-black/10 rounded" />
       </td>
       <td className="px-3 py-3">
-        <div className="h-6 w-20 bg-black/10 rounded-full" />
+        <div className="h-6 w-24 bg-black/10 rounded-full" />
+      </td>
+      <td className="px-3 py-3">
+        <div className="h-6 w-6 bg-black/10 rounded ml-auto" />
       </td>
     </tr>
   );
 }
 
 export default function Usuarios() {
+  const navigate = useNavigate();
+
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(false);
-
   const [search, setSearch] = useState("");
 
   const params = useMemo(() => {
@@ -80,13 +96,10 @@ export default function Usuarios() {
   async function cargar() {
     setLoading(true);
     setError(null);
-
     try {
       const r = await api.get("/usuarios", { params });
-
       const dataRoot = (r.data && (r.data.data ?? r.data)) ?? null;
-      const list = extractItems(dataRoot);
-      setItems(list);
+      setItems(extractItems(dataRoot));
     } catch (e: any) {
       const status = e?.response?.status;
       const msg = e?.response?.data?.message ?? e?.message ?? "Error cargando usuarios";
@@ -95,6 +108,12 @@ export default function Usuarios() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function goShow(u: Usuario) {
+    // ✅ Ruta relativa dentro de /dashboard/usuarios
+    // Requiere que exista Route path="usuarios/:id"
+    navigate(String(u.id));
   }
 
   useEffect(() => {
@@ -128,49 +147,47 @@ export default function Usuarios() {
             </div>
           </div>
 
-          <button
-            onClick={cargar}
-            className={[
-              "h-10 px-3 rounded-2xl border border-black/15 bg-white font-extrabold text-xs",
-              "hover:bg-black/5 transition flex items-center gap-2",
-              "focus:outline-none focus:ring-2 focus:ring-[#FE003E]/25",
-              loading ? "opacity-60 cursor-not-allowed" : "",
-            ].join(" ")}
-            disabled={loading}
-            type="button"
-            title="Refrescar"
-          >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            Refrescar
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => navigate("/dashboard/usuarios/crear")}
+              className="h-10 px-4 rounded-2xl bg-[#FE003E] text-white font-extrabold text-xs flex items-center gap-2 hover:opacity-90 transition shadow-sm shadow-[#FE003E]/20"
+              type="button"
+            >
+              <UserPlus className="h-4 w-4" />
+              Nuevo Usuario
+            </button>
+
+            <button
+              onClick={cargar}
+              className="h-10 px-3 rounded-2xl border border-black/15 bg-white font-extrabold text-xs hover:bg-black/5 transition flex items-center gap-2 disabled:opacity-60"
+              disabled={loading}
+              type="button"
+              title="Refrescar"
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              <span className="hidden sm:inline">Refrescar</span>
+            </button>
+          </div>
         </div>
 
-        {/* Search */}
+        {/* Search Bar */}
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-black/45" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && cargar()}
               placeholder="Buscar por nombre o correo..."
-              className={[
-                "w-full pl-9 pr-3 py-2 rounded-2xl border border-black/15 outline-none",
-                "focus:ring-2 focus:ring-[#FE003E]/25 focus:border-[#FE003E]/30",
-              ].join(" ")}
+              className="w-full pl-9 pr-3 py-2 rounded-2xl border border-black/15 outline-none focus:ring-2 focus:ring-[#FE003E]/25 focus:border-[#FE003E]/30"
             />
           </div>
 
           <button
             onClick={cargar}
-            className={[
-              "h-10 rounded-2xl bg-black text-white px-4 font-extrabold",
-              "hover:opacity-90 transition",
-              "disabled:opacity-60 disabled:cursor-not-allowed",
-              "focus:outline-none focus:ring-2 focus:ring-black/20",
-              "flex items-center justify-center gap-2",
-            ].join(" ")}
-            type="button"
+            className="h-10 rounded-2xl bg-black text-white px-6 font-extrabold hover:opacity-90 transition disabled:opacity-60 flex items-center justify-center gap-2"
             disabled={loading}
+            type="button"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             Buscar
@@ -182,9 +199,10 @@ export default function Usuarios() {
           <table className="w-full text-sm">
             <thead className="bg-black text-white">
               <tr>
-                <th className="text-left px-3 py-2">Usuario</th>
-                <th className="text-left px-3 py-2">Correo</th>
-                <th className="text-left px-3 py-2">Rol</th>
+                <th className="text-left px-3 py-3">Usuario</th>
+                <th className="text-left px-3 py-3">Correo</th>
+                <th className="text-left px-3 py-3">Rol</th>
+                <th className="text-right px-3 py-3 w-[60px]"></th>
               </tr>
             </thead>
 
@@ -195,56 +213,65 @@ export default function Usuarios() {
                   <SkeletonRow />
                   <SkeletonRow />
                 </>
+              ) : items.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-3 py-10 text-center text-black/40 font-medium">
+                    No se encontraron usuarios que coincidan con la búsqueda.
+                  </td>
+                </tr>
               ) : (
                 items.map((u, idx) => {
                   const role = firstRole(u);
                   return (
                     <tr
                       key={u.id}
+                      onClick={() => goShow(u)}
                       className={[
-                        "border-t border-black/10",
+                        "border-t border-black/10 cursor-pointer transition hover:bg-black/[0.03]",
                         idx % 2 === 1 ? "bg-black/[0.01]" : "bg-white",
-                        "hover:bg-black/[0.03] transition",
                       ].join(" ")}
+                      title="Ver perfil"
                     >
                       <td className="px-3 py-3 font-bold">
-                        <div className="flex items-center gap-3 min-w-[220px]">
-                          <div className="h-9 w-9 rounded-2xl bg-black text-white grid place-items-center font-black">
+                        <div className="flex items-center gap-3 min-w-[200px]">
+                          <div className="h-9 w-9 rounded-2xl bg-black text-white grid place-items-center font-black text-xs">
                             {initials(u.name)}
                           </div>
                           <div className="min-w-0">
                             <div className="truncate">{u.name}</div>
-                            <div className="text-[11px] text-black/45 truncate">ID: {u.id}</div>
+                            <div className="text-[10px] text-black/45 uppercase tracking-wider">
+                              ID: {u.id}
+                            </div>
                           </div>
                         </div>
                       </td>
 
                       <td className="px-3 py-3">
-                        <div className="flex items-center gap-2 text-black/80 min-w-[220px]">
-                          <Mail className="h-4 w-4 text-black/40" />
+                        <div className="flex items-center gap-2 text-black/70 min-w-[220px]">
+                          <Mail className="h-3.5 w-3.5 text-black/30" />
                           <span className="truncate">{u.email}</span>
                         </div>
                       </td>
 
                       <td className="px-3 py-3">
-                        <span className={["inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-black", roleBadge(role)].join(" ")}>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${roleBadge(role)}`}>
                           {role}
                         </span>
+                      </td>
+
+                      <td className="px-3 py-3 text-right">
+                        <ChevronRight className="h-4 w-4 text-black/35 inline-block" />
                       </td>
                     </tr>
                   );
                 })
               )}
-
-              {!loading && items.length === 0 && (
-                <tr>
-                  <td colSpan={3} className="px-3 py-4 text-black/60">
-                    Sin usuarios.
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
+        </div>
+
+        <div className="mt-3 text-[11px] text-black/40 italic">
+          * Haz clic en una fila para abrir el perfil del usuario.
         </div>
       </section>
     </div>

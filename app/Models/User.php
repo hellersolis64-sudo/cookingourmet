@@ -5,40 +5,24 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens; // Asegúrate de que esta línea esté aquí
+use Laravel\Sanctum\HasApiTokens;
+use App\Models\Rol;
 
 class User extends Authenticatable
 {
-    // Añadimos HasApiTokens junto a los otros traits
-    /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
 
-    /**
-     * Los atributos que se pueden asignar masivamente.
-     *
-     * @var list<string>
-     */
     protected $fillable = [
         'name',
         'email',
         'password',
     ];
 
-    /**
-     * Los atributos que deben ocultarse para la serialización.
-     *
-     * @var list<string>
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * Los atributos que deben ser casteados.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
@@ -47,43 +31,14 @@ class User extends Authenticatable
         ];
     }
 
-    // --- Relaciones de tu Proyecto ---
-
+    // ✅ Roles del usuario (pivot: usuario_roles(usuario_id, rol_id))
     public function roles()
     {
         return $this->belongsToMany(
             Rol::class,
             'usuario_roles',
-            'usuario_id', 
-            'rol_id'
-        );
-    }
-
-    public function horarios()
-    {
-        return $this->hasMany(UsuarioHorario::class);
-    }
-
-    public function asistencias()
-    {
-        return $this->hasMany(Asistencia::class);
-    }
-
-    public function tareas()
-    {
-        return $this->hasMany(Tarea::class);
-    }
-
-    /**
-     * Relación inversa para obtener usuarios por rol (si fuera necesario)
-     */
-    public function usuarios()
-    {
-        return $this->belongsToMany(
-            User::class,
-            'usuario_roles',
-            'rol_id',
-            'usuario_id'
+            'usuario_id', // FK del usuario en el pivot
+            'rol_id'      // FK del rol en el pivot
         );
     }
 
@@ -97,11 +52,24 @@ class User extends Authenticatable
         return $this->roles()->whereIn('nombre', $roles)->exists();
     }
 
+    // --- Relaciones de tu proyecto (deja estas como están si existen esos modelos) ---
+    public function horarios()
+    {
+        return $this->hasMany(\App\Models\UsuarioHorario::class);
+    }
+
+    public function asistencias()
+    {
+        return $this->hasMany(\App\Models\Asistencia::class);
+    }
+
+    public function tareas()
+    {
+        return $this->hasMany(\App\Models\Tarea::class);
+    }
 
     public function presence()
     {
         return $this->hasOne(\App\Models\UserPresence::class);
     }
-
-
 }

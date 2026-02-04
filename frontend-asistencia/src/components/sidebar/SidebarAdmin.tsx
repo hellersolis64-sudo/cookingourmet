@@ -1,4 +1,5 @@
 // src/components/sidebar/SidebarAdmin.tsx
+import React from "react";
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -9,6 +10,7 @@ import {
   Users,
   ShieldCheck,
   UserPlus,
+  KeyRound, // ✅ NUEVO
 } from "lucide-react";
 
 function NavItem({
@@ -100,6 +102,13 @@ export default function SidebarAdmin() {
         to="/dashboard/admin"
         icon={<ShieldCheck className="h-5 w-5" />}
         label="Asignar tarea"
+      />
+
+      {/* ✅ NUEVO: Roles */}
+      <NavItem
+        to="/dashboard/roles"
+        icon={<KeyRound className="h-5 w-5" />}
+        label="Roles"
       />
 
       <SectionTitle>USUARIOS</SectionTitle>

@@ -16,6 +16,10 @@ import AdminDashboard from "./pages/AdminDashboard";
 
 import Usuarios from "./pages/Usuarios";
 import UsuariosCrear from "./pages/UsuariosCrear";
+import UsuarioShow from "./pages/UsuarioShow"; // ✅ NUEVO (ruta show)
+
+// ✅ IMPORTACIÓN DE ROLES
+import Roles from "./pages/Roles";
 
 import "./index.css";
 
@@ -53,7 +57,10 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
               <Route element={<AdminRoute />}>
                 <Route path="usuarios" element={<Usuarios />} />
                 <Route path="usuarios/crear" element={<UsuariosCrear />} />
+                <Route path="usuarios/:id" element={<UsuarioShow />} /> {/* ✅ NUEVO */}
                 <Route path="admin" element={<AdminDashboard />} />
+                {/* ✅ NUEVA RUTA DE ROLES */}
+                <Route path="roles" element={<Roles />} />
               </Route>
 
               {/* fallback dentro de dashboard */}
