@@ -313,7 +313,7 @@ export default function AdminDashboard() {
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-xl bg-[#FE003E]" />
             <div>
-              <div className="font-extrabold leading-tight">TimeFlow — Admin</div>
+              <div className="font-extrabold leading-tight">CG-AdminControler</div>
               <div className="text-xs text-black/60">{me ? `${me.name} — ${me.email}` : "Panel admin"}</div>
             </div>
           </div>
