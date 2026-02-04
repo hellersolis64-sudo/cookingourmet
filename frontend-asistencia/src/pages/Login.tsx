@@ -2,6 +2,16 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../auth/AuthContext";
+import { api } from "../services/api";
+
+type AccessMode = "viewer" | "temp_full" | "full";
+
+type AccessPayload = {
+  mode: AccessMode;
+  reason?: string;
+  ip?: string;
+  expires_at?: string | null;
+};
 
 export default function Login() {
   const navigate = useNavigate();
@@ -14,6 +24,10 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // ✅ Gate modal (modo visor)
+  const [gateOpen, setGateOpen] = useState(false);
+  const [gate, setGate] = useState<AccessPayload | null>(null);
+
   const LOGO_URL = "/assets/logo-cooking.png";
 
   // ✅ si ProtectedRoute te mandó al login, aquí viene la ruta original
@@ -25,18 +39,53 @@ export default function Login() {
     setLoading(true);
 
     try {
+      // 1) Login
       await signIn(email.trim(), password);
 
-      // ✅ refresca access mode real (no bloquea si falla)
+      // 2) Refresca access-mode del AuthContext (no bloquea si falla)
       refreshAccessMode().catch(() => {});
 
-      // ✅ vuelve a donde iba (o /dashboard)
+      // 3) Pedimos el access-mode real para mostrar IP y razón
+      const r = await api.get("/auth/access-mode");
+      const a: AccessPayload = r.data?.data ?? {};
+
+      const mode: AccessMode = (a?.mode as any) || "viewer";
+
+      // 4) Si es viewer => mostramos modal y NO navegamos aún
+      if (mode === "viewer") {
+        setGate({
+          mode,
+          ip: a?.ip ?? "",
+          reason: a?.reason ?? "",
+          expires_at: a?.expires_at ?? null,
+        });
+        setGateOpen(true);
+        return;
+      }
+
+      // 5) Si es full / temp_full => entra normal
       navigate(from, { replace: true });
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Credenciales incorrectas o error de conexión.");
+      setError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Credenciales incorrectas o error de conexión."
+      );
     } finally {
       setLoading(false);
     }
+  }
+
+  function acceptViewer() {
+    setGateOpen(false);
+    navigate(from, { replace: true });
+  }
+
+  function cancelViewer() {
+    setGateOpen(false);
+    setError(
+      "Ingresaste desde una IP no permitida. Si deseas entrar, acepta el modo visor."
+    );
   }
 
   return (
@@ -56,7 +105,11 @@ export default function Login() {
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#050505]/50 to-[#050505]" />
       </div>
 
-      <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 w-full max-w-md">
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative z-10 w-full max-w-md"
+      >
         <div className="backdrop-blur-3xl bg-black/40 border border-white/10 rounded-[3rem] p-10 shadow-[0_30px_60px_rgba(0,0,0,0.7)]">
           <div className="flex flex-col items-center text-center mb-10">
             <div className="h-20 w-20 rounded-full bg-gradient-to-tr from-[#FE003E] to-[#ff4d7a] p-0.5 shadow-[0_0_30px_rgba(254,0,62,0.3)] mb-5">
@@ -84,7 +137,9 @@ export default function Login() {
 
           <form onSubmit={onSubmit} className="space-y-6">
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-white/50 uppercase ml-4 tracking-widest">Usuario</label>
+              <label className="text-[10px] font-bold text-white/50 uppercase ml-4 tracking-widest">
+                Usuario
+              </label>
               <input
                 type="email"
                 className="w-full bg-white/5 rounded-2xl border border-white/10 px-6 py-4 text-white outline-none focus:ring-2 focus:ring-[#FE003E]/40 transition-all placeholder:text-white/10"
@@ -95,7 +150,9 @@ export default function Login() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-white/50 uppercase ml-4 tracking-widest">Contraseña</label>
+              <label className="text-[10px] font-bold text-white/50 uppercase ml-4 tracking-widest">
+                Contraseña
+              </label>
               <input
                 type="password"
                 className="w-full bg-white/5 rounded-2xl border border-white/10 px-6 py-4 text-white outline-none focus:ring-2 focus:ring-[#FE003E]/40 transition-all placeholder:text-white/10"
@@ -122,12 +179,74 @@ export default function Login() {
                 exit={{ opacity: 0, height: 0 }}
                 className="mt-6 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-center"
               >
-                <p className="text-red-400 text-xs font-bold uppercase tracking-tight">{error}</p>
+                <p className="text-red-400 text-xs font-bold uppercase tracking-tight">
+                  {error}
+                </p>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
       </motion.div>
+
+      {/* ✅ MODAL: aviso antes de entrar en modo visor */}
+      <AnimatePresence>
+        {gateOpen && gate?.mode === "viewer" && (
+          <motion.div
+            className="fixed inset-0 z-[999] grid place-items-center p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <div className="absolute inset-0 bg-black/70" onClick={cancelViewer} />
+            <motion.div
+              initial={{ opacity: 0, y: 18, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 18, scale: 0.98 }}
+              className="relative w-full max-w-lg rounded-[2rem] border border-white/10 bg-black/70 backdrop-blur-2xl p-6 shadow-[0_30px_80px_rgba(0,0,0,0.75)]"
+            >
+              <div className="text-white text-xl font-black tracking-tight">
+                Ingreso en modo visor
+              </div>
+
+              <div className="mt-3 text-white/70 text-sm space-y-2">
+                <div>
+                  IP detectada:{" "}
+                  <span className="text-white font-extrabold">
+                    {gate.ip || "—"}
+                  </span>
+                </div>
+                <div>
+                  Esta IP no está en la lista permitida. Entrarás en{" "}
+                  <span className="text-white font-extrabold">SOLO LECTURA</span>.
+                </div>
+                {gate.reason ? (
+                  <div className="text-[11px] text-white/40">
+                    Motivo: {gate.reason}
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="mt-6 flex flex-col sm:flex-row gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={cancelViewer}
+                  className="rounded-2xl px-5 py-3 font-black bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 transition"
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="button"
+                  onClick={acceptViewer}
+                  className="rounded-2xl px-5 py-3 font-black bg-[#FE003E] text-white hover:brightness-95 transition shadow-[0_10px_24px_rgba(254,0,62,0.25)]"
+                >
+                  Aceptar e ingresar
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="absolute bottom-8 flex flex-col items-center gap-3">
         <div className="h-[1px] w-12 bg-white/10" />
