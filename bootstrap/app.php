@@ -13,6 +13,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
 
+        // ✅ IMPORTANTE EN RAILWAY/PROXY: confiar en headers de proxy para IP real
+        $middleware->trustProxies(at: '*');
+
         // ✅ Registro de Aliases
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckRole::class,
@@ -34,7 +37,6 @@ return Application::configure(basePath: dirname(__DIR__))
         // ✅ CORS global (ForceCors debe ir primero para que se aplique al final en la respuesta)
         $middleware->append(\App\Http\Middleware\ForceCors::class);
         $middleware->append(\Illuminate\Http\Middleware\HandleCors::class);
-
 
     })
     ->withExceptions(function (Exceptions $exceptions) {

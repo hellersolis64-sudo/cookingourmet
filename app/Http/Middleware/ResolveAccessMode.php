@@ -23,19 +23,22 @@ class ResolveAccessMode
     }
 
     private function clientIp(Request $request): string
-    {
-        // Railway / proxies: X-Forwarded-For suele ser "IP_CLIENTE, IP_PROXY, ..."
-        $xff = $request->header('X-Forwarded-For');
-        if ($xff) {
-            $parts = array_values(array_filter(array_map('trim', explode(',', $xff))));
-            if (!empty($parts[0])) return $parts[0];
-        }
+{
+    $cf = $request->header('CF-Connecting-IP');
+    if ($cf) return trim($cf);
 
-        $xri = $request->header('X-Real-IP');
-        if ($xri) return trim($xri);
-
-        return (string) $request->ip();
+    $xff = $request->header('X-Forwarded-For');
+    if ($xff) {
+        $parts = array_values(array_filter(array_map('trim', explode(',', $xff))));
+        if (!empty($parts[0])) return $parts[0];
     }
+
+    $xri = $request->header('X-Real-IP');
+    if ($xri) return trim($xri);
+
+    return (string) $request->ip();
+}
+
 
     public function handle(Request $request, Closure $next)
     {
