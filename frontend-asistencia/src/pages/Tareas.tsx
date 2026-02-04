@@ -633,7 +633,7 @@ export default function Tareas() {
             {loading ? (
               <p className="text-sm text-black/60 flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Cargando…
+                Cargando….
               </p>
             ) : tareas.length === 0 ? (
               <p className="text-sm text-black/60">No tienes tareas.</p>
