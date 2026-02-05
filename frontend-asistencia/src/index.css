@@ -296,3 +296,10 @@ select:focus-visible,
 textarea:focus-visible {
   box-shadow: 0 0 0 4px rgba(254, 0, 62, 0.18);
 }
+
+
+
+:root{
+  font-family: "Montserrat", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+body{ font-family: inherit; }

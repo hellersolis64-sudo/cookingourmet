@@ -12,6 +12,9 @@ import { normalizeRoles, hasAnyRole } from "../services/roles";
 // ✅ NUEVO
 import { useAuth } from "../auth/AuthContext";
 
+// ✅ Logo en src/assets (Vite lo resuelve con import)
+import logoCg from "../assets/logo-cg.svg";
+
 function Icon({ name }: { name: "menu" | "close" | "logout" }) {
   const common = "w-5 h-5";
   switch (name) {
@@ -30,7 +33,12 @@ function Icon({ name }: { name: "menu" | "close" | "logout" }) {
     case "logout":
       return (
         <svg className={common} viewBox="0 0 24 24" fill="none">
-          <path d="M10 7V6a2 2 0 0 1 2-2h7v16h-7a2 2 0 0 1-2-2v-1" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+          <path
+            d="M10 7V6a2 2 0 0 1 2-2h7v16h-7a2 2 0 0 1-2-2v-1"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinejoin="round"
+          />
           <path d="M14 12H3m0 0 3-3M3 12l3 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
         </svg>
       );
@@ -85,7 +93,7 @@ export default function DashboardLayout() {
 
   // ✅ Refresca roles + access-mode al entrar al dashboard (UNA SOLA VEZ)
   useEffect(() => {
-    if (ranOnce.current) return; 
+    if (ranOnce.current) return;
     ranOnce.current = true;
 
     let alive = true;
@@ -123,7 +131,6 @@ export default function DashboardLayout() {
     return () => {
       alive = false;
     };
-    // ⚠️ Importante: Sin dependencias para asegurar que solo corra al montar el layout
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -140,7 +147,15 @@ export default function DashboardLayout() {
     <aside className="h-screen bg-black text-white flex flex-col">
       <div className="px-4 py-4 border-b border-white/10">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-[#FE003E]" />
+          {/* ✅ MISMO CUADRO ROJO, con tu logo SVG dentro (desde src/assets) */}
+          <div className="h-10 w-10 rounded-xl bg-[#FE003E] grid place-items-center overflow-hidden shadow-[0_10px_30px_rgba(254,0,62,0.18)]">
+            <img
+              src={logoCg}
+              alt="CG"
+              className="w-[70%] h-[70%] object-contain block"
+            />
+          </div>
+
           <div className="min-w-0">
             <div className="font-extrabold leading-tight">CG-AdminControler</div>
             <div className="text-xs text-white/60 truncate">

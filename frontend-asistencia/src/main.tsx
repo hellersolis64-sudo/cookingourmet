@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import "./index.css";
 
 import Login from "./pages/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -16,12 +17,13 @@ import AdminDashboard from "./pages/AdminDashboard";
 
 import Usuarios from "./pages/Usuarios";
 import UsuariosCrear from "./pages/UsuariosCrear";
-import UsuarioShow from "./pages/UsuarioShow"; // ✅ NUEVO (ruta show)
+import UsuarioShow from "./pages/UsuarioShow";
 
 // ✅ IMPORTACIÓN DE ROLES
 import Roles from "./pages/Roles";
 
-import "./index.css";
+// ✅ NUEVO: LIVE
+import Live from "./pages/Live";
 
 import { AuthProvider } from "./auth/AuthContext";
 
@@ -44,7 +46,6 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 
           {/* ✅ PROTECTED */}
           <Route element={<ProtectedRoute />}>
-            {/* /dashboard layout */}
             <Route path="/dashboard" element={<DashboardLayout />}>
               <Route index element={<Dashboard />} />
 
@@ -53,22 +54,26 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
               <Route path="asistencia" element={<Asistencia />} />
               <Route path="extensiones" element={<Extensiones />} />
 
+              {/* ✅ LIVE (si quieres que sea para TODOS los logueados, déjalo aquí) */}
+              <Route path="live" element={<Live />} />
+
               {/* ✅ ADMIN ONLY */}
               <Route element={<AdminRoute />}>
                 <Route path="usuarios" element={<Usuarios />} />
                 <Route path="usuarios/crear" element={<UsuariosCrear />} />
-                <Route path="usuarios/:id" element={<UsuarioShow />} /> {/* ✅ NUEVO */}
+                <Route path="usuarios/:id" element={<UsuarioShow />} />
                 <Route path="admin" element={<AdminDashboard />} />
-                {/* ✅ NUEVA RUTA DE ROLES */}
                 <Route path="roles" element={<Roles />} />
+
+                // ✅ SI prefieres que LIVE sea SOLO admin, mueve la línea:
+                // <Route path="live" element={<Live />} />
+                // aquí adentro y borra la de arriba.
               </Route>
 
-              {/* fallback dentro de dashboard */}
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Route>
           </Route>
 
-          {/* ✅ Global fallback (si no existe ruta, manda a home pública) */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

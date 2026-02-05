@@ -1,4 +1,6 @@
 // src/pages/Tareas.tsx
+import "./Tareas.css";
+
 import React, { useEffect, useState } from "react";
 import { api } from "../services/api";
 import {
@@ -40,13 +42,11 @@ type Extension = {
 function extractItems<T>(payload: any): T[] {
   return Array.isArray(payload) ? payload : payload?.data ?? [];
 }
-
 function toHHmm(v?: string | null) {
   if (!v) return "";
   return v.slice(0, 5);
 }
 
-// ===== Reloj (front) =====
 function pad(n: number) {
   return String(n).padStart(2, "0");
 }
@@ -66,6 +66,9 @@ function parseTodayHHmmToDate(todayISO: string, hhmm: string) {
   const [hh, mm] = hhmm.split(":").map(Number);
   return new Date(y, m - 1, dd, hh, mm, 0, 0);
 }
+function ensureHHmmss(v: string) {
+  return v.length === 5 ? `${v}:00` : v;
+}
 
 function ModalShell({
   open,
@@ -84,47 +87,35 @@ function ModalShell({
 
   return (
     <div
-      onClick={onClose}
-      className="fixed inset-0 bg-black/60 grid place-items-center p-3 sm:p-4 z-50"
+      className="ta-modalOverlay"
       role="dialog"
       aria-modal="true"
       aria-label={title}
+      onClick={onClose}
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-black/10"
-      >
-        {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-black/10 flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-lg font-extrabold text-black leading-tight break-words">
-              {title}
-            </div>
-            {subtitle ? (
-              <div className="text-xs text-black/55 mt-0.5 break-words">
-                {subtitle}
-              </div>
-            ) : null}
+      <div className="ta-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="ta-modalHeader">
+          <div style={{ minWidth: 0 }}>
+            <div className="ta-modalTitle">{title}</div>
+            {subtitle ? <div className="ta-modalSub">{subtitle}</div> : null}
           </div>
 
           <button
+            className="ta-iconBtn"
             onClick={onClose}
-            className="h-9 w-9 rounded-2xl hover:bg-black/5 grid place-items-center shrink-0"
-            title="Cerrar"
             type="button"
+            title="Cerrar"
           >
-            <X className="h-4 w-4 text-black/70" />
+            <X size={16} />
           </button>
         </div>
 
-        {/* Body (scroll seguro en móviles) */}
-        <div className="p-4 sm:p-5 max-h-[78vh] overflow-auto">{children}</div>
+        <div className="ta-modalBody">{children}</div>
       </div>
     </div>
   );
 }
 
-// ===== Edit modal (solo título/desc) =====
 function EditTaskModal({
   open,
   initial,
@@ -134,7 +125,11 @@ function EditTaskModal({
   open: boolean;
   initial: Tarea | null;
   onClose: () => void;
-  onSave: (payload: { id: number; titulo: string; descripcion: string | null }) => Promise<void>;
+  onSave: (payload: {
+    id: number;
+    titulo: string;
+    descripcion: string | null;
+  }) => Promise<void>;
 }) {
   const [titulo, setTitulo] = useState("");
   const [descripcion, setDescripcion] = useState("");
@@ -160,13 +155,11 @@ function EditTaskModal({
       title="Editar tarea"
       subtitle={`Programación: ${sched}`}
     >
-      <div className="space-y-3">
+      <div style={{ display: "grid", gap: 10 }}>
         <div>
-          <label className="block text-xs font-extrabold text-black/60 mb-1">
-            Título
-          </label>
+          <label className="ta-label">Título</label>
           <input
-            className="w-full rounded-2xl border border-black/15 px-3 py-2 outline-none focus:ring-2 focus:ring-[#FE003E]/30 focus:border-[#FE003E]/30"
+            className="ta-input"
             value={titulo}
             onChange={(e) => setTitulo(e.target.value)}
             placeholder="Título"
@@ -174,11 +167,9 @@ function EditTaskModal({
         </div>
 
         <div>
-          <label className="block text-xs font-extrabold text-black/60 mb-1">
-            Descripción (opcional)
-          </label>
+          <label className="ta-label">Descripción (opcional)</label>
           <textarea
-            className="w-full rounded-2xl border border-black/15 px-3 py-2 outline-none focus:ring-2 focus:ring-[#FE003E]/30 focus:border-[#FE003E]/30"
+            className="ta-textarea"
             value={descripcion}
             onChange={(e) => setDescripcion(e.target.value)}
             placeholder="Descripción (opcional)"
@@ -186,15 +177,24 @@ function EditTaskModal({
           />
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-2 justify-end pt-1">
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            justifyContent: "flex-end",
+            flexWrap: "wrap",
+          }}
+        >
           <button
-            onClick={onClose}
-            className="rounded-2xl border border-black/15 px-4 py-2 font-extrabold hover:bg-black/5 w-full sm:w-auto"
             type="button"
+            onClick={onClose}
+            className="ta-btn ta-btnOutline"
           >
             Cancelar
           </button>
+
           <button
+            type="button"
             onClick={() =>
               onSave({
                 id: initial.id,
@@ -202,11 +202,9 @@ function EditTaskModal({
                 descripcion: descripcion.trim() ? descripcion.trim() : null,
               })
             }
-            className="rounded-2xl bg-[#FE003E] text-white px-4 py-2 font-extrabold hover:brightness-95 flex items-center justify-center gap-2 w-full sm:w-auto"
-            type="button"
+            className="ta-btn ta-btnPrimary"
           >
-            <Save className="h-4 w-4" />
-            Guardar
+            <Save size={14} /> Guardar
           </button>
         </div>
       </div>
@@ -245,13 +243,11 @@ function ExtensionModal({
 
     if (!hora) return setErr("Selecciona la hora fin solicitada.");
 
-    const horaEnviar = hora.length === 5 ? `${hora}:00` : hora;
-
     setSaving(true);
     try {
       const res = await api.post<ApiResponse<any>>("/solicitudes-extension", {
         tarea_id: tarea.id,
-        hora_fin_solicitada: horaEnviar,
+        hora_fin_solicitada: ensureHHmmss(hora),
         motivo: motivo.trim() ? motivo.trim() : null,
       });
 
@@ -276,56 +272,60 @@ function ExtensionModal({
       title="Solicitar extensión"
       subtitle={`Tarea #${tarea.id} — ${tarea.titulo}`}
     >
-      <form onSubmit={submit} className="grid gap-3">
+      <form onSubmit={submit} style={{ display: "grid", gap: 10 }}>
         <div>
-          <label className="block text-xs font-extrabold text-black/60 mb-1">
-            Nueva hora fin
-          </label>
+          <label className="ta-label">Nueva hora fin</label>
           <input
             type="time"
             step={60}
             value={hora}
             onChange={(e) => setHora(e.target.value)}
-            className="w-full rounded-2xl border border-black/15 px-3 py-2 outline-none focus:ring-2 focus:ring-[#FE003E]/30 focus:border-[#FE003E]/30"
+            className="ta-input"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-extrabold text-black/60 mb-1">
-            Motivo (opcional)
-          </label>
+          <label className="ta-label">Motivo (opcional)</label>
           <textarea
             value={motivo}
             onChange={(e) => setMotivo(e.target.value)}
             rows={3}
-            className="w-full rounded-2xl border border-black/15 px-3 py-2 outline-none focus:ring-2 focus:ring-[#FE003E]/30 focus:border-[#FE003E]/30"
+            className="ta-textarea"
             placeholder="Describe por qué necesitas extensión..."
           />
         </div>
 
         {err && (
-          <div className="rounded-2xl border border-[#FE003E]/30 bg-[#FE003E]/10 px-3 py-2 text-sm flex gap-2">
-            <BadgeAlert className="h-4 w-4 text-[#FE003E] mt-0.5" />
-            <div className="min-w-0 break-words">
-              <b className="text-[#FE003E]">Error:</b> {err}
+          <div className="ta-alert">
+            <BadgeAlert size={16} color="#FE003E" />
+            <div style={{ minWidth: 0 }}>
+              <b>Error:</b> {err}
             </div>
           </div>
         )}
 
-        <div className="flex flex-col sm:flex-row gap-2 justify-end pt-1">
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            justifyContent: "flex-end",
+            flexWrap: "wrap",
+          }}
+        >
           <button
             type="button"
             onClick={onClose}
-            className="rounded-2xl border border-black/15 px-4 py-2 font-extrabold hover:bg-black/5 w-full sm:w-auto"
+            className="ta-btn ta-btnOutline"
           >
             Cancelar
           </button>
+
           <button
             type="submit"
             disabled={saving}
-            className="rounded-2xl bg-[#FE003E] text-white px-4 py-2 font-extrabold hover:brightness-95 disabled:opacity-60 flex items-center justify-center gap-2 w-full sm:w-auto"
+            className="ta-btn ta-btnPrimary"
           >
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            {saving ? <Loader2 size={14} className="ta-spin" /> : <Send size={14} />}
             {saving ? "Enviando…" : "Enviar"}
           </button>
         </div>
@@ -339,10 +339,8 @@ export default function Tareas() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // reloj
   const [now, setNow] = useState(() => new Date());
 
-  // crear
   const [titulo, setTitulo] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [hfin, setHfin] = useState(() => {
@@ -351,11 +349,9 @@ export default function Tareas() {
   });
   const [saving, setSaving] = useState(false);
 
-  // editar
   const [editOpen, setEditOpen] = useState(false);
   const [editTask, setEditTask] = useState<Tarea | null>(null);
 
-  // extensiones pendientes por tarea
   const [pendingByTask, setPendingByTask] = useState<Set<number>>(new Set());
   const [extOpen, setExtOpen] = useState(false);
   const [extTask, setExtTask] = useState<Tarea | null>(null);
@@ -363,7 +359,6 @@ export default function Tareas() {
   const fechaHoy = toISODateLocal(now);
   const horaAhora = toHHmmss(now);
 
-  // ✅ cache pendientes
   const EXT_CACHE_KEY = "ext_pending_cache_v1";
   const EXT_CACHE_TTL_MS = 60_000;
 
@@ -409,11 +404,11 @@ export default function Tareas() {
 
       const set = new Set<number>();
       for (const x of items) {
-        if ((x.estado ?? "").toLowerCase() === "pendiente") set.add(Number(x.tarea_id));
+        if ((x.estado ?? "").toLowerCase() === "pendiente")
+          set.add(Number(x.tarea_id));
       }
 
       setPendingByTask(set);
-
       localStorage.setItem(
         EXT_CACHE_KEY,
         JSON.stringify({ ts: Date.now(), ids: Array.from(set.values()) })
@@ -427,7 +422,10 @@ export default function Tareas() {
     setError(null);
     setLoading(true);
     try {
-      await Promise.allSettled([cargarTareas(), cargarPendientesExtensionesCached(force)]);
+      await Promise.allSettled([
+        cargarTareas(),
+        cargarPendientesExtensionesCached(force),
+      ]);
     } finally {
       setLoading(false);
     }
@@ -442,7 +440,9 @@ export default function Tareas() {
 
     const end = parseTodayHHmmToDate(fechaHoy, hfin);
     if (end.getTime() <= now.getTime()) {
-      return setError("La hora fin debe ser mayor a la hora actual. Elige al menos unos minutos después.");
+      return setError(
+        "La hora fin debe ser mayor a la hora actual. Elige al menos unos minutos después."
+      );
     }
 
     setSaving(true);
@@ -450,10 +450,11 @@ export default function Tareas() {
       const res = await api.post<ApiResponse<Tarea>>("/tareas", {
         titulo: titulo.trim(),
         descripcion: descripcion.trim() ? descripcion.trim() : null,
-        hora_fin_programada: hfin,
+        hora_fin_programada: ensureHHmmss(hfin),
       });
 
-      if (!res.data.success) return setError(res.data.message || "No se pudo crear la tarea");
+      if (!res.data.success)
+        return setError(res.data.message || "No se pudo crear la tarea");
 
       setTitulo("");
       setDescripcion("");
@@ -468,14 +469,22 @@ export default function Tareas() {
     }
   }
 
-  async function guardarEdicion(payload: { id: number; titulo: string; descripcion: string | null }) {
+  async function guardarEdicion(payload: {
+    id: number;
+    titulo: string;
+    descripcion: string | null;
+  }) {
     setError(null);
     try {
-      const res = await api.put<ApiResponse<Tarea>>(`/tareas/${payload.id}`, payload);
-      if (!res.data.success) return setError(res.data.message || "No se pudo actualizar");
+      const res = await api.put<ApiResponse<Tarea>>(
+        `/tareas/${payload.id}`,
+        payload
+      );
+      if (!res.data.success)
+        return setError(res.data.message || "No se pudo actualizar");
       setEditOpen(false);
       setEditTask(null);
-      await cargarTareas(); // ✅ rápido
+      await cargarTareas();
     } catch (e: any) {
       setError(e?.response?.data?.message ?? "Error actualizando tarea");
     }
@@ -486,7 +495,8 @@ export default function Tareas() {
     setError(null);
     try {
       const res = await api.delete<ApiResponse<null>>(`/tareas/${id}`);
-      if (!res.data.success) return setError(res.data.message || "No se pudo eliminar");
+      if (!res.data.success)
+        return setError(res.data.message || "No se pudo eliminar");
       await initLoad(true);
     } catch (e: any) {
       setError(e?.response?.data?.message ?? "Error eliminando tarea");
@@ -499,257 +509,265 @@ export default function Tareas() {
   }, []);
 
   return (
-    <div className="w-full max-w-[1200px] mx-auto px-3 sm:px-4 space-y-4">
-      {error && (
-        <div className="rounded-2xl border border-[#FE003E]/30 bg-[#FE003E]/10 px-4 py-3 text-sm flex gap-2">
-          <AlertTriangle className="h-4 w-4 text-[#FE003E] mt-0.5" />
-          <div className="min-w-0 break-words">
-            <b className="text-[#FE003E]">Error:</b> {error}
+    <div className="ta-page">
+      <div className="ta-container">
+        {error && (
+          <div className="ta-alert" style={{ marginBottom: 10 }}>
+            <AlertTriangle size={16} color="#FE003E" />
+            <div style={{ minWidth: 0 }}>
+              <b>Error:</b> {error}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        {/* Crear */}
-        <section className="bg-white rounded-3xl p-4 sm:p-5 border border-black/10 shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-            <div className="min-w-0">
-              <div className="flex items-start gap-2">
-                <div className="h-10 w-10 rounded-2xl bg-black/[0.04] border border-black/10 grid place-items-center shrink-0">
-                  <Plus className="h-5 w-5 text-black/60" />
+        <div className="ta-grid">
+          {/* Crear */}
+          <section className="ta-card">
+            <div className="ta-cardHeader">
+              <div className="ta-leftHeader">
+                <div className="ta-iconBox">
+                  <Plus size={16} />
                 </div>
-                <div className="min-w-0">
-                  <h2 className="text-xl font-extrabold text-black break-words">
-                    Crear tarea
-                  </h2>
-                  <div className="text-xs text-black/60 break-words">
-                    La fecha e inicio se registran automáticamente con la hora real.
+                <div style={{ minWidth: 0 }}>
+                  <h2 className="ta-title">Crear tarea</h2>
+                  <div className="ta-subtitle">
+                    La fecha e inicio se registran automáticamente con la hora
+                    real.
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* reloj visible */}
-            <div className="rounded-3xl border border-black/10 px-4 py-3 text-left sm:text-right bg-black/[0.02] w-full sm:w-auto">
-              <div className="text-xs font-extrabold text-black/60 flex items-center justify-start sm:justify-end gap-2">
-                <Clock className="h-4 w-4" />
-                Hora actual
+              <div className="ta-kpi">
+                <div className="ta-kpiTop">
+                  <Clock size={14} />
+                  Hora actual
+                </div>
+                <div className="ta-kpiTime">{horaAhora}</div>
+                <div className="ta-kpiBottom">
+                  <CalendarDays size={14} />
+                  {fechaHoy}
+                </div>
               </div>
-              <div className="text-lg font-extrabold text-black">{horaAhora}</div>
-              <div className="text-xs text-black/60 flex items-center justify-start sm:justify-end gap-2">
-                <CalendarDays className="h-4 w-4" />
-                {fechaHoy}
-              </div>
-            </div>
-          </div>
-
-          <form onSubmit={crearTarea} className="mt-4 grid gap-3">
-            <div>
-              <label className="block text-xs font-extrabold text-black/60 mb-1">Título</label>
-              <input
-                className="w-full rounded-2xl border border-black/15 px-3 py-2 outline-none focus:ring-2 focus:ring-[#FE003E]/30 focus:border-[#FE003E]/30"
-                value={titulo}
-                onChange={(e) => setTitulo(e.target.value)}
-                placeholder="Título"
-              />
             </div>
 
-            <div>
-              <label className="block text-xs font-extrabold text-black/60 mb-1">
-                Descripción (opcional)
-              </label>
-              <textarea
-                className="w-full rounded-2xl border border-black/15 px-3 py-2 outline-none focus:ring-2 focus:ring-[#FE003E]/30 focus:border-[#FE003E]/30"
-                value={descripcion}
-                onChange={(e) => setDescripcion(e.target.value)}
-                placeholder="Descripción (opcional)"
-                rows={3}
-              />
-            </div>
-
-            {/* En móvil se apilan, en sm+ se distribuyen */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <form onSubmit={crearTarea} className="ta-form">
               <div>
-                <label className="block text-xs font-extrabold text-black/60 mb-1">Fecha (auto)</label>
+                <label className="ta-label">Título</label>
                 <input
-                  type="date"
-                  value={fechaHoy}
-                  disabled
-                  className="w-full rounded-2xl border border-black/15 px-3 py-2 bg-black/5 text-black/70"
+                  className="ta-input"
+                  value={titulo}
+                  onChange={(e) => setTitulo(e.target.value)}
+                  placeholder="Título"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-extrabold text-black/60 mb-1">Inicio (auto)</label>
-                <input
-                  type="time"
-                  step={1}
-                  value={horaAhora}
-                  disabled
-                  className="w-full rounded-2xl border border-black/15 px-3 py-2 bg-black/5 text-black/70"
+                <label className="ta-label">Descripción (opcional)</label>
+                <textarea
+                  className="ta-textarea"
+                  value={descripcion}
+                  onChange={(e) => setDescripcion(e.target.value)}
+                  placeholder="Descripción (opcional)"
+                  rows={3}
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-extrabold text-black/60 mb-1">Fin</label>
-                <input
-                  type="time"
-                  step={60}
-                  value={hfin}
-                  onChange={(e) => setHfin(e.target.value)}
-                  className="w-full rounded-2xl border border-black/15 px-3 py-2 outline-none focus:ring-2 focus:ring-[#FE003E]/30 focus:border-[#FE003E]/30"
-                />
+              <div className="ta-row3">
+                <div>
+                  <label className="ta-label">Fecha (auto)</label>
+                  <input
+                    type="date"
+                    value={fechaHoy}
+                    disabled
+                    className="ta-input"
+                  />
+                </div>
+
+                <div>
+                  <label className="ta-label">Inicio (auto)</label>
+                  <input
+                    type="time"
+                    step={1}
+                    value={horaAhora}
+                    disabled
+                    className="ta-input"
+                  />
+                </div>
+
+                <div>
+                  <label className="ta-label">Fin</label>
+                  <input
+                    type="time"
+                    step={60}
+                    value={hfin}
+                    onChange={(e) => setHfin(e.target.value)}
+                    className="ta-input"
+                  />
+                </div>
               </div>
+
+              <button
+                type="submit"
+                disabled={saving}
+                className="ta-btn ta-btnPrimary ta-btnFull"
+              >
+                {saving ? (
+                  <Loader2 size={14} className="ta-spin" />
+                ) : (
+                  <Plus size={14} />
+                )}
+                {saving ? "Guardando…" : "Crear"}
+              </button>
+            </form>
+          </section>
+
+          {/* Lista */}
+          <section className="ta-card">
+            <div className="ta-listHeader">
+              <h2 className="ta-title" style={{ margin: 0 }}>
+                Mis tareas
+              </h2>
+
+              <button
+                onClick={() => initLoad(true)}
+                className="ta-btn ta-btnOutline"
+                disabled={loading}
+                type="button"
+              >
+                {loading ? (
+                  <Loader2 size={14} className="ta-spin" />
+                ) : (
+                  <RefreshCw size={14} />
+                )}
+                Refrescar
+              </button>
             </div>
 
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-2xl bg-[#FE003E] text-white px-4 py-2 font-extrabold hover:brightness-95 disabled:opacity-60 flex items-center justify-center gap-2 w-full"
-            >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              {saving ? "Guardando…" : "Crear"}
-            </button>
-          </form>
-        </section>
+            <div style={{ marginTop: 12 }}>
+              {loading ? (
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    alignItems: "center",
+                    color: "rgba(0,0,0,0.60)",
+                    fontWeight: 850,
+                  }}
+                >
+                  <Loader2 size={16} className="ta-spin" /> Cargando…
+                </div>
+              ) : tareas.length === 0 ? (
+                <div style={{ color: "rgba(0,0,0,0.60)", fontWeight: 850 }}>
+                  No tienes tareas.
+                </div>
+              ) : (
+                <ul className="ta-list">
+                  {tareas.map((t) => {
+                    const hasPending = pendingByTask.has(t.id);
+                    const sched = t.fecha_programada
+                      ? `${t.fecha_programada} • ${toHHmm(
+                          t.hora_inicio_programada
+                        )} - ${toHHmm(t.hora_fin_programada)}`
+                      : "Sin programación";
 
-        {/* Lista */}
-        <section className="bg-white rounded-3xl p-4 sm:p-5 border border-black/10 shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <h2 className="text-xl font-extrabold text-black">Mis tareas</h2>
+                    return (
+                      <li key={t.id} className="ta-item">
+                        <div className="ta-itemRow">
+                          <div className="ta-itemBody">
+                            <div className="ta-itemTitle">
+                              <span className="ta-id">#{t.id}</span> {t.titulo}
+                            </div>
 
-            <button
-              onClick={() => initLoad(true)}
-              className="h-10 px-3 rounded-2xl border border-black/15 font-extrabold hover:bg-black/5 flex items-center justify-center gap-2 w-full sm:w-auto"
-              disabled={loading}
-              type="button"
-            >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              Refrescar
-            </button>
-          </div>
+                            <div className="ta-itemMeta">
+                              <TimerReset size={14} style={{ opacity: 0.6 }} />
+                              <span>{sched}</span>
+                            </div>
 
-          <div className="mt-4">
-            {loading ? (
-              <p className="text-sm text-black/60 flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Cargando….
-              </p>
-            ) : tareas.length === 0 ? (
-              <p className="text-sm text-black/60">No tienes tareas.</p>
-            ) : (
-              <ul className="space-y-2">
-                {tareas.map((t) => {
-                  const hasPending = pendingByTask.has(t.id);
-                  const sched = t.fecha_programada
-                    ? `${t.fecha_programada} • ${toHHmm(t.hora_inicio_programada)} - ${toHHmm(
-                        t.hora_fin_programada
-                      )}`
-                    : "Sin programación";
+                            {t.descripcion ? (
+                              <div className="ta-itemDesc">{t.descripcion}</div>
+                            ) : null}
 
-                  return (
-                    <li
-                      key={t.id}
-                      className="rounded-3xl border border-black/10 p-4 hover:bg-black/[0.02] transition"
-                    >
-                      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="font-extrabold text-black break-words">
-                            <span className="text-[#FE003E]">#{t.id}</span> {t.titulo}
+                            {hasPending ? (
+                              <div className="ta-badge">
+                                <BadgeAlert size={14} />
+                                Extensión pendiente
+                              </div>
+                            ) : null}
                           </div>
 
-                          <div className="text-xs font-bold text-black/60 mt-1 flex items-center gap-2 flex-wrap">
-                            <TimerReset className="h-4 w-4 text-black/40" />
-                            <span className="break-words">{sched}</span>
+                          {/* ✅ ACCIONES SOLO ICONOS */}
+                          <div className="ta-actions">
+                            <button
+                              type="button"
+                              className="ta-iconAction"
+                              disabled={hasPending}
+                              title={
+                                hasPending
+                                  ? "Ya hay una extensión pendiente"
+                                  : "Solicitar extensión"
+                              }
+                              aria-label="Solicitar extensión"
+                              onClick={() => {
+                                setExtTask(t);
+                                setExtOpen(true);
+                              }}
+                            >
+                              <TimerReset size={16} />
+                            </button>
+
+                            <button
+                              type="button"
+                              className="ta-iconAction"
+                              title="Editar"
+                              aria-label="Editar"
+                              onClick={() => {
+                                setEditTask(t);
+                                setEditOpen(true);
+                              }}
+                            >
+                              <Pencil size={16} />
+                            </button>
+
+                            <button
+                              type="button"
+                              className="ta-iconAction ta-iconAction--danger"
+                              title="Eliminar"
+                              aria-label="Eliminar"
+                              onClick={() => eliminarTarea(t.id)}
+                            >
+                              <Trash2 size={16} />
+                            </button>
                           </div>
-
-                          {t.descripcion && (
-                            <div className="text-sm text-black/70 mt-2 break-words">
-                              {t.descripcion}
-                            </div>
-                          )}
-
-                          {hasPending && (
-                            <div className="inline-flex mt-3 text-xs font-black px-2.5 py-1 rounded-full bg-[#FE003E]/10 text-[#FE003E] border border-[#FE003E]/20 items-center gap-1.5">
-                              <BadgeAlert className="h-4 w-4" />
-                              Extensión pendiente
-                            </div>
-                          )}
                         </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          </section>
+        </div>
 
-                        {/* Acciones: en móvil se apilan y ocupan ancho; en md+ se ponen a la derecha */}
-                        <div className="grid grid-cols-1 sm:grid-cols-3 md:flex md:flex-wrap gap-2 shrink-0">
-                          <button
-                            onClick={() => {
-                              setExtTask(t);
-                              setExtOpen(true);
-                            }}
-                            disabled={hasPending}
-                            className={[
-                              "rounded-2xl border border-black/15 px-3 py-2 font-extrabold",
-                              "hover:bg-black/5 transition flex items-center justify-center gap-2",
-                              hasPending ? "opacity-60 cursor-not-allowed" : "",
-                            ].join(" ")}
-                            type="button"
-                            title={hasPending ? "Ya hay una extensión pendiente" : "Solicitar extensión"}
-                          >
-                            <TimerReset className="h-4 w-4" />
-                            Extensión
-                          </button>
+        <EditTaskModal
+          open={editOpen}
+          initial={editTask}
+          onClose={() => {
+            setEditOpen(false);
+            setEditTask(null);
+          }}
+          onSave={guardarEdicion}
+        />
 
-                          <button
-                            onClick={() => {
-                              setEditTask(t);
-                              setEditOpen(true);
-                            }}
-                            className="rounded-2xl border border-black/15 px-3 py-2 font-extrabold hover:bg-black/5 transition flex items-center justify-center gap-2"
-                            type="button"
-                          >
-                            <Pencil className="h-4 w-4" />
-                            Editar
-                          </button>
-
-                          <button
-                            onClick={() => eliminarTarea(t.id)}
-                            className="rounded-2xl bg-black text-white px-3 py-2 font-extrabold hover:opacity-90 transition flex items-center justify-center gap-2"
-                            type="button"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            Eliminar
-                          </button>
-                        </div>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-        </section>
+        <ExtensionModal
+          open={extOpen}
+          tarea={extTask}
+          onClose={() => {
+            setExtOpen(false);
+            setExtTask(null);
+          }}
+          onCreated={() => cargarPendientesExtensionesCached(true)}
+        />
       </div>
-
-      <EditTaskModal
-        open={editOpen}
-        initial={editTask}
-        onClose={() => {
-          setEditOpen(false);
-          setEditTask(null);
-        }}
-        onSave={guardarEdicion}
-      />
-
-      <ExtensionModal
-        open={extOpen}
-        tarea={extTask}
-        onClose={() => {
-          setExtOpen(false);
-          setExtTask(null);
-        }}
-        onCreated={() => {
-          // ✅ fuerza recarga de pendientes (para pintar el badge sin esperar TTL)
-          cargarPendientesExtensionesCached(true);
-        }}
-      />
     </div>
   );
 }

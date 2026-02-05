@@ -308,32 +308,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen text-black">
-      <div className="border-b border-black/10 bg-white">
-        <div className="px-4 py-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-[#FE003E]" />
-            <div>
-              <div className="font-extrabold leading-tight">CG-AdminControler</div>
-              <div className="text-xs text-black/60">{me ? `${me.name} — ${me.email}` : "Panel admin"}</div>
-            </div>
-          </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => navigate("/dashboard")}
-              className="rounded-xl border border-black/15 px-4 py-2 font-extrabold hover:bg-black/5"
-            >
-              Mis tareas
-            </button>
-            <button
-              onClick={onLogout}
-              className="rounded-xl bg-[#FE003E] text-white px-4 py-2 font-extrabold hover:opacity-95"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
-      </div>
 
       <div className="p-4">
         <div className="max-w-6xl mx-auto space-y-4">

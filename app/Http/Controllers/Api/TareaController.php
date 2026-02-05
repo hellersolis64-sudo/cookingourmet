@@ -531,4 +531,193 @@ public function store(Request $request)
 
         return ApiResponse::success($tarea->fresh(), 'Tarea enviada y bloqueada');
     }
+
+
+
+
+
+
+
+
+    
+    // =========================
+// ✅ LIVE: ver quién está trabajando (Admin/Supervisor)
+// =========================
+        public function live(Request $request)
+        {
+            $auth = $request->user();
+            if (!$this->isAdminOrSupervisor($auth)) {
+                return ApiResponse::error('No autorizado', null, 403);
+            }
+
+            $now = now();
+            $tz  = config('app.timezone') ?: 'UTC';
+
+            $hasStartAt   = Schema::hasColumn('tareas', 'inicio_real_at');
+            $hasEndAt     = Schema::hasColumn('tareas', 'fin_real_at');
+            $hasStartTime = Schema::hasColumn('tareas', 'hora_inicio_real');
+            $hasEndTime   = Schema::hasColumn('tareas', 'hora_fin_real');
+
+            $q = Tarea::query()->with(['usuario:id,name,email']);
+
+            // evita mostrar tareas bloqueadas (enviada/completada/incompleta)
+            if (Schema::hasColumn('tareas', 'estado_id')) {
+                $lockedIds = DB::table('tarea_estados')
+                    ->whereIn('nombre', ['enviada', 'completada', 'incompleta'])
+                    ->pluck('id')
+                    ->all();
+
+                if (!empty($lockedIds)) $q->whereNotIn('estado_id', $lockedIds);
+            }
+
+            // Solo “activas”: iniciadas y no finalizadas
+            if ($hasStartAt) $q->whereNotNull('inicio_real_at');
+            elseif ($hasStartTime) $q->whereNotNull('hora_inicio_real');
+
+            if ($hasEndAt) $q->whereNull('fin_real_at');
+            elseif ($hasEndTime) $q->whereNull('hora_fin_real');
+
+            // evita basura vieja
+            $q->where('created_at', '>=', $now->copy()->subDays(2));
+
+            $rows = $q->orderByDesc('id')->limit(200)->get();
+
+            $items = $rows->map(function ($t) use ($now, $tz, $hasStartAt, $hasEndAt, $hasStartTime, $hasEndTime) {
+                $fecha = (Schema::hasColumn('tareas', 'fecha_programada') && $t->fecha_programada)
+                    ? $t->fecha_programada
+                    : optional($t->created_at)->toDateString();
+
+                $hiniProg = $this->normalizeTime($t->hora_inicio_programada ?? null);
+                $hfinProg = $this->normalizeTime($t->hora_fin_programada ?? null);
+
+                // base programada
+                $scheduledStart = ($fecha && $hiniProg)
+                    ? Carbon::createFromFormat('Y-m-d H:i:s', "{$fecha} {$hiniProg}", $tz)
+                    : (optional($t->created_at) ?? $now);
+
+                $scheduledEnd = null;
+                if ($fecha && $hfinProg) {
+                    $scheduledEnd = Carbon::createFromFormat('Y-m-d H:i:s', "{$fecha} {$hfinProg}", $tz);
+                    if ($scheduledEnd->lte($scheduledStart)) $scheduledEnd->addDay(); // por si cruza medianoche
+                }
+
+                // inicio real
+                $realStart = null;
+                if ($hasStartAt && !empty($t->inicio_real_at)) {
+                    $realStart = Carbon::parse($t->inicio_real_at);
+                } elseif ($hasStartTime && !empty($t->hora_inicio_real) && $fecha) {
+                    $rs = $this->normalizeTime($t->hora_inicio_real);
+                    $realStart = Carbon::createFromFormat('Y-m-d H:i:s', "{$fecha} {$rs}", $tz);
+                } else {
+                    $realStart = $scheduledStart;
+                }
+
+                // fin real
+                $realEnd = null;
+                if ($hasEndAt && !empty($t->fin_real_at)) {
+                    $realEnd = Carbon::parse($t->fin_real_at);
+                } elseif ($hasEndTime && !empty($t->hora_fin_real) && $fecha) {
+                    $re = $this->normalizeTime($t->hora_fin_real);
+                    $realEnd = Carbon::createFromFormat('Y-m-d H:i:s', "{$fecha} {$re}", $tz);
+                }
+
+                $elapsed = max(0, $now->diffInSeconds($realStart, false)); // ahora - inicio
+                $total   = $scheduledEnd ? max(1, $scheduledEnd->diffInSeconds($scheduledStart)) : 0;
+
+                $progress = $total > 0 ? (int) round(min(100, max(0, ($elapsed / $total) * 100))) : null;
+
+                return [
+                    'id' => $t->id,
+                    'titulo' => $t->titulo,
+                    'descripcion' => $t->descripcion,
+                    'usuario' => $t->usuario ? [
+                        'id' => $t->usuario->id,
+                        'name' => $t->usuario->name,
+                        'email' => $t->usuario->email,
+                    ] : null,
+
+                    'fecha_programada' => $t->fecha_programada ?? null,
+                    'hora_inicio_programada' => $t->hora_inicio_programada ?? null,
+                    'hora_fin_programada' => $t->hora_fin_programada ?? null,
+
+                    'hora_inicio_real' => $t->hora_inicio_real ?? null,
+                    'hora_fin_real' => $t->hora_fin_real ?? null,
+                    'inicio_real_at' => $t->inicio_real_at ?? null,
+                    'fin_real_at' => $t->fin_real_at ?? null,
+
+                    'elapsed_seconds' => $elapsed,
+                    'total_seconds' => $total,
+                    'progress_percent' => $progress,
+                ];
+            });
+
+            return ApiResponse::success($items, 'Live');
+        }
+
+        // =========================
+        // ✅ INICIAR tarea (pone hora_inicio_real / inicio_real_at)
+        // =========================
+        public function iniciar(Request $request, Tarea $tarea)
+        {
+            if (!$this->canAccessTarea($request->user(), $tarea)) {
+                return ApiResponse::error('No autorizado', null, 403);
+            }
+            if ($this->isLocked($tarea)) {
+                return ApiResponse::error('Tarea bloqueada. No se puede iniciar.', null, 409);
+            }
+
+            $now = now();
+            $changed = false;
+
+            if (Schema::hasColumn('tareas', 'hora_inicio_real') && empty($tarea->hora_inicio_real)) {
+                $tarea->hora_inicio_real = $now->format('H:i:s');
+                $changed = true;
+            }
+            if (Schema::hasColumn('tareas', 'inicio_real_at') && empty($tarea->inicio_real_at)) {
+                $tarea->inicio_real_at = $now;
+                $changed = true;
+            }
+
+            // estado “en_progreso” si existe
+            if (Schema::hasColumn('tareas', 'estado_id')) {
+                $enProgresoId = DB::table('tarea_estados')
+                    ->whereIn('nombre', ['en_progreso', 'en progreso', 'en-progreso'])
+                    ->value('id');
+                if ($enProgresoId) $tarea->estado_id = $enProgresoId;
+            }
+
+            if ($changed) $tarea->save();
+
+            return ApiResponse::success($tarea->fresh(), $changed ? 'Tarea iniciada' : 'La tarea ya estaba iniciada');
+        }
+
+        // =========================
+        // ✅ FINALIZAR tarea (pone hora_fin_real / fin_real_at)
+        // =========================
+        public function finalizar(Request $request, Tarea $tarea)
+        {
+            if (!$this->canAccessTarea($request->user(), $tarea)) {
+                return ApiResponse::error('No autorizado', null, 403);
+            }
+            if ($this->isLocked($tarea)) {
+                return ApiResponse::error('Tarea bloqueada. No se puede finalizar.', null, 409);
+            }
+
+            $now = now();
+            $changed = false;
+
+            if (Schema::hasColumn('tareas', 'hora_fin_real') && empty($tarea->hora_fin_real)) {
+                $tarea->hora_fin_real = $now->format('H:i:s');
+                $changed = true;
+            }
+            if (Schema::hasColumn('tareas', 'fin_real_at') && empty($tarea->fin_real_at)) {
+                $tarea->fin_real_at = $now;
+                $changed = true;
+            }
+
+            if ($changed) $tarea->save();
+
+            return ApiResponse::success($tarea->fresh(), $changed ? 'Tarea finalizada' : 'La tarea ya estaba finalizada');
+        }
+
 }

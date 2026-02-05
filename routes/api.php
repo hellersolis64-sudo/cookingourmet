@@ -57,7 +57,7 @@ Route::middleware(['throttle:300,1'])->group(function () {
 
             // ✅ Lectura
             Route::get('/usuarios', [UserController::class, 'index']);
-            Route::get('/usuarios/{id}', [UserController::class, 'show'])->whereNumber('id'); // ✅ opcional para editar
+            Route::get('/usuarios/{id}', [UserController::class, 'show'])->whereNumber('id');
 
             Route::get('/roles', [RoleController::class, 'index']);
 
@@ -68,13 +68,16 @@ Route::middleware(['throttle:300,1'])->group(function () {
             Route::get('/extensiones', [SolicitudExtensionQueryController::class, 'index']);
             Route::get('/schedules', [ScheduleController::class, 'index']);
 
+            // ✅ LIVE (lectura) - Admin/Supervisor
+            Route::get('/live', [TareaController::class, 'live']);
+
             // ✅ Escritura (Bloqueada si el modo de acceso es 'viewer')
             Route::middleware('require.full')->group(function () {
 
                 // ✅ Usuarios (CRUD)
                 Route::post('/usuarios', [UserController::class, 'store']);
-                Route::put('/usuarios/{id}', [UserController::class, 'update'])->whereNumber('id');     // ✅ NUEVO
-                Route::delete('/usuarios/{id}', [UserController::class, 'destroy'])->whereNumber('id'); // ✅ NUEVO
+                Route::put('/usuarios/{id}', [UserController::class, 'update'])->whereNumber('id');
+                Route::delete('/usuarios/{id}', [UserController::class, 'destroy'])->whereNumber('id');
 
                 // ✅ Extensiones
                 Route::put('/extensiones/{solicitud}/aprobar', [SolicitudExtensionController::class, 'aprobar']);
@@ -95,7 +98,6 @@ Route::middleware(['throttle:300,1'])->group(function () {
         });
 
         // ================= EMPLEADO / ADMIN / SUPERVISOR =================
-        // ✅ Si cambias "empleado" a "colaborador" en BD, aquí ya lo soporta.
         Route::middleware('role:empleado,colaborador,admin,supervisor')->group(function () {
 
             // --------- LECTURA (Acceso permitido a todos los modos) ---------
@@ -142,6 +144,10 @@ Route::middleware(['throttle:300,1'])->group(function () {
                 Route::apiResource('tareas', TareaController::class)->except(['index']);
                 Route::patch('/tareas/{tarea}/enviar', [TareaController::class, 'enviar'])->whereNumber('tarea');
                 Route::patch('/tareas/{tarea}/estado', [TareaController::class, 'cambiarEstado'])->whereNumber('tarea');
+
+                // ✅ LIVE helpers: iniciar / finalizar
+                Route::patch('/tareas/{tarea}/iniciar', [TareaController::class, 'iniciar'])->whereNumber('tarea');
+                Route::patch('/tareas/{tarea}/finalizar', [TareaController::class, 'finalizar'])->whereNumber('tarea');
 
                 // Archivos tareas (escritura)
                 Route::post('/tareas/{tarea}/archivos', [TareaArchivoController::class, 'store'])->whereNumber('tarea');

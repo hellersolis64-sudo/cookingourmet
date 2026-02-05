@@ -1,6 +1,8 @@
 // src/components/sidebar/SidebarAdmin.tsx
-import React from "react";
-import { NavLink } from "react-router-dom";
+import "./Sidebar.css";
+
+import React, { useEffect, useMemo, useState } from "react";
+import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   ListTodo,
@@ -10,7 +12,9 @@ import {
   Users,
   ShieldCheck,
   UserPlus,
-  KeyRound, // ✅ NUEVO
+  KeyRound,
+  ChevronDown,
+  Radio, // ✅ NUEVO (Live)
 } from "lucide-react";
 
 function NavItem({
@@ -29,99 +33,163 @@ function NavItem({
       to={to}
       end={end}
       className={({ isActive }) =>
-        [
-          "group flex items-center gap-3 rounded-2xl px-3 py-2.5 font-extrabold transition",
-          "focus:outline-none focus:ring-2 focus:ring-white/20",
-          isActive
-            ? "bg-[#FE003E] text-white shadow-[0_10px_30px_rgba(254,0,62,0.18)]"
-            : "text-white/80 hover:text-white hover:bg-white/10",
-        ].join(" ")
+        ["sb-item", isActive ? "sb-item--active" : "sb-item--idle"].join(" ")
       }
     >
-      <span
-        className={[
-          "h-9 w-9 rounded-2xl grid place-items-center",
-          "border border-white/10",
-          "bg-white/[0.06] group-hover:bg-white/[0.10] transition",
-        ].join(" ")}
-      >
-        {icon}
-      </span>
-
-      <span className="truncate">{label}</span>
+      <span className="sb-ico">{icon}</span>
+      <span className="sb-label">{label}</span>
     </NavLink>
   );
 }
 
-function SectionTitle({ children }: { children: string }) {
+function GroupButton({
+  icon,
+  label,
+  open,
+  onToggle,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  open: boolean;
+  onToggle: () => void;
+}) {
   return (
-    <div className="px-3 pt-2 text-[11px] font-black tracking-widest text-white/45">
-      {children}
+    <button
+      type="button"
+      onClick={onToggle}
+      className="sb-groupBtn"
+      aria-expanded={open}
+    >
+      <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+        <span className="sb-ico">{icon}</span>
+        <span className="sb-label">{label}</span>
+      </span>
+
+      <ChevronDown className={open ? "sb-chevron sb-chevron--open" : "sb-chevron"} />
+    </button>
+  );
+}
+
+function Submenu({
+  open,
+  children,
+}: {
+  open: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={open ? "sb-subWrap sb-subWrap--open" : "sb-subWrap"}>
+      <div className="sb-sub">{children}</div>
     </div>
   );
 }
 
 export default function SidebarAdmin() {
+  const { pathname } = useLocation();
+
+  const isAdminRoute = useMemo(
+    () =>
+      pathname.startsWith("/dashboard/admin") ||
+      pathname.startsWith("/dashboard/roles"),
+    [pathname]
+  );
+
+  const isUsersRoute = useMemo(
+    () => pathname.startsWith("/dashboard/usuarios"),
+    [pathname]
+  );
+
+  const [openAdmin, setOpenAdmin] = useState(false);
+  const [openUsers, setOpenUsers] = useState(false);
+
+  useEffect(() => {
+    if (isAdminRoute) setOpenAdmin(true);
+    if (isUsersRoute) setOpenUsers(true);
+  }, [isAdminRoute, isUsersRoute]);
+
   return (
-    <nav className="p-3 space-y-2 flex-1 overflow-y-auto">
+    <nav className="sb-nav">
       <NavItem
         to="/dashboard"
         end
-        icon={<LayoutDashboard className="h-5 w-5" />}
+        icon={<LayoutDashboard className="h-4 w-4" />}
         label="Dashboard"
       />
 
       <NavItem
         to="/dashboard/tareas"
-        icon={<ListTodo className="h-5 w-5" />}
+        icon={<ListTodo className="h-4 w-4" />}
         label="Tareas"
       />
 
       <NavItem
         to="/dashboard/calendario"
-        icon={<CalendarDays className="h-5 w-5" />}
+        icon={<CalendarDays className="h-4 w-4" />}
         label="Calendario"
       />
 
       <NavItem
         to="/dashboard/asistencia"
-        icon={<Clock className="h-5 w-5" />}
+        icon={<Clock className="h-4 w-4" />}
         label="Asistencia"
       />
 
       <NavItem
         to="/dashboard/extensiones"
-        icon={<FileText className="h-5 w-5" />}
+        icon={<FileText className="h-4 w-4" />}
         label="Extensiones"
       />
 
-      <div className="pt-3 border-t border-white/10" />
-
-      <SectionTitle>ADMIN</SectionTitle>
+      {/* ✅ NUEVO: LIVE */}
       <NavItem
-        to="/dashboard/admin"
-        icon={<ShieldCheck className="h-5 w-5" />}
-        label="Asignar tarea"
+        to="/dashboard/live"
+        icon={<Radio className="h-4 w-4" />}
+        label="Live"
       />
 
-      {/* ✅ NUEVO: Roles */}
-      <NavItem
-        to="/dashboard/roles"
-        icon={<KeyRound className="h-5 w-5" />}
-        label="Roles"
+      <div className="sb-sep" />
+
+      {/* ====== ADMIN (submenu) ====== */}
+      <GroupButton
+        icon={<ShieldCheck className="h-4 w-4" />}
+        label="Admin"
+        open={openAdmin}
+        onToggle={() => setOpenAdmin((v) => !v)}
       />
 
-      <SectionTitle>USUARIOS</SectionTitle>
-      <NavItem
-        to="/dashboard/usuarios"
-        icon={<Users className="h-5 w-5" />}
-        label="Lista de usuarios"
+      <Submenu open={openAdmin}>
+        <NavItem
+          to="/dashboard/admin"
+          icon={<ShieldCheck className="h-4 w-4" />}
+          label="Asignar tarea"
+        />
+        <NavItem
+          to="/dashboard/roles"
+          icon={<KeyRound className="h-4 w-4" />}
+          label="Roles"
+        />
+      </Submenu>
+
+      {/* ====== USUARIOS (submenu) ====== */}
+      <GroupButton
+        icon={<Users className="h-4 w-4" />}
+        label="Usuarios"
+        open={openUsers}
+        onToggle={() => setOpenUsers((v) => !v)}
       />
-      <NavItem
-        to="/dashboard/usuarios/crear"
-        icon={<UserPlus className="h-5 w-5" />}
-        label="Crear usuario"
-      />
+
+      <Submenu open={openUsers}>
+        <NavItem
+          to="/dashboard/usuarios"
+          icon={<Users className="h-4 w-4" />}
+          label="Lista de usuarios"
+        />
+        <NavItem
+          to="/dashboard/usuarios/crear"
+          icon={<UserPlus className="h-4 w-4" />}
+          label="Crear usuario"
+        />
+      </Submenu>
     </nav>
   );
 }

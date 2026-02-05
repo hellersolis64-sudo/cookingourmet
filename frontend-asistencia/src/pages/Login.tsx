@@ -4,6 +4,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../auth/AuthContext";
 import { api } from "../services/api";
 
+// ✅ Logo en src/assets
+import logoCg from "../assets/logo-cg.svg";
+
 type AccessMode = "viewer" | "temp_full" | "full";
 
 type AccessPayload = {
@@ -28,7 +31,8 @@ export default function Login() {
   const [gateOpen, setGateOpen] = useState(false);
   const [gate, setGate] = useState<AccessPayload | null>(null);
 
-  const LOGO_URL = "/assets/logo-cooking.png";
+  // ✅ ahora viene de src/assets
+  const LOGO_URL = logoCg;
 
   // ✅ si ProtectedRoute te mandó al login, aquí viene la ruta original
   const from = (location.state as any)?.from || "/dashboard";

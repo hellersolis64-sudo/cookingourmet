@@ -1,0 +1,176 @@
+/* src/components/sidebar/Sidebar.css */
+
+/* ===== Sidebar COMPACT (pro) ===== */
+.sb-nav {
+  padding: 8px !important;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ===== Brand header (titulo + logo pill) ===== */
+.sb-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 8px 2px;
+}
+
+.sb-brandLeft {
+  min-width: 0;
+}
+
+.sb-brandTitle {
+  display: block;
+  font-weight: 900;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.92);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* óvalo */
+.sb-logoPill {
+  width: 52px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+}
+
+.sb-logoImg {
+  width: 70%;
+  height: 70%;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.25));
+}
+
+/* Item base */
+.sb-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 12px;
+  padding: 8px 10px;
+  font-weight: 800;
+  font-size: 13px;
+  line-height: 1;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease,
+    transform 0.12s ease;
+}
+
+.sb-item--idle {
+  color: rgba(255, 255, 255, 0.8);
+}
+.sb-item--idle:hover {
+  color: rgba(255, 255, 255, 1);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.sb-item--active {
+  background: #fe003e;
+  color: #fff;
+  box-shadow: 0 10px 30px rgba(254, 0, 62, 0.18);
+}
+
+/* Icon bubble */
+.sb-ico {
+  width: 32px;
+  height: 32px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.06);
+  transition: background 0.15s ease;
+}
+.sb-item:hover .sb-ico,
+.sb-groupBtn:hover .sb-ico {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Texto */
+.sb-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Separador */
+.sb-sep {
+  margin: 10px 0 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Grupo (botón tipo submenu) */
+.sb-groupBtn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-radius: 12px;
+  padding: 8px 10px;
+  font-weight: 800;
+  font-size: 13px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.8);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.sb-groupBtn:hover {
+  color: rgba(255, 255, 255, 1);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.sb-groupLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* Chevron */
+.sb-chevron {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.18s ease;
+  opacity: 0.85;
+}
+.sb-chevron--open {
+  transform: rotate(180deg);
+}
+
+/* Submenu wrapper */
+.sb-subWrap {
+  overflow: hidden;
+  transition: max-height 0.25s ease, opacity 0.2s ease;
+  max-height: 0;
+  opacity: 0;
+}
+.sb-subWrap--open {
+  max-height: 420px;
+  opacity: 1;
+}
+
+/* Submenu content */
+.sb-sub {
+  margin-top: 4px;
+  margin-left: 12px;
+  padding-left: 10px;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}

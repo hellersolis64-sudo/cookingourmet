@@ -1,0 +1,424 @@
+/* src/pages/Tareas.css */
+/* Encapsulado: todo prefijo ta- (versión compacta) */
+
+.ta-page{ padding: 10px; }
+.ta-container{ max-width: 1200px; margin: 0 auto; }
+
+.ta-grid{ display: grid; gap: 12px; }
+@media (min-width: 1024px){
+  .ta-grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.ta-alert{
+  display:flex; gap: 8px; align-items:flex-start;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(254, 0, 62, 0.28);
+  background: rgba(254, 0, 62, 0.10);
+  color:#111;
+  font-size: 13px;
+  font-weight: 750;
+}
+.ta-alert b{ color:#FE003E; }
+
+.ta-card{
+  background:#fff;
+  border: 1px solid rgba(0,0,0,0.10);
+  border-radius: 20px;
+  padding: 12px;
+  box-shadow: 0 8px 22px rgba(0,0,0,0.055);
+}
+@media (min-width: 640px){
+  .ta-card{ padding: 14px; }
+}
+
+.ta-cardHeader{
+  display:flex;
+  gap: 10px;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.ta-leftHeader{
+  min-width: 0;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.ta-iconBox{
+  height: 36px;
+  width: 36px;
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,0.10);
+  background: rgba(0,0,0,0.03);
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.ta-title{
+  font-size: 18px;
+  font-weight: 900;
+  color:#111;
+  line-height: 1.1;
+  margin: 0;
+}
+
+.ta-subtitle{
+  margin-top: 3px;
+  font-size: 11px;
+  color: rgba(0,0,0,0.60);
+  font-weight: 750;
+}
+
+.ta-kpi{
+  width: 100%;
+  border-radius: 18px;
+  border: 1px solid rgba(0,0,0,0.10);
+  background: rgba(0,0,0,0.02);
+  padding: 8px 10px;
+}
+@media (min-width: 640px){
+  .ta-kpi{ width: auto; min-width: 180px; }
+}
+
+.ta-kpiTop{
+  display:flex; align-items:center; gap: 6px;
+  font-size: 11px; font-weight: 900;
+  color: rgba(0,0,0,0.60);
+  justify-content: flex-start;
+}
+@media (min-width: 640px){
+  .ta-kpiTop{ justify-content: flex-end; }
+}
+
+.ta-kpiTime{
+  font-size: 16px;
+  font-weight: 900;
+  color:#111;
+  margin-top: 3px;
+}
+
+.ta-kpiBottom{
+  display:flex; align-items:center; gap: 6px;
+  font-size: 11px; font-weight: 750;
+  color: rgba(0,0,0,0.60);
+  margin-top: 3px;
+  justify-content: flex-start;
+}
+@media (min-width: 640px){
+  .ta-kpiBottom{ justify-content: flex-end; }
+}
+
+/* Form */
+.ta-form{ margin-top: 12px; display: grid; gap: 10px; }
+
+.ta-label{
+  display:block;
+  font-size: 11px;
+  font-weight: 900;
+  color: rgba(0,0,0,0.60);
+  margin-bottom: 5px;
+}
+
+.ta-input, .ta-textarea{
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid rgba(0,0,0,0.15);
+  padding: 9px 11px;
+  outline: none;
+  font-weight: 750;
+  font-size: 13px;
+  color:#111;
+  background:#fff;
+}
+.ta-textarea{ resize: vertical; }
+
+.ta-input:focus, .ta-textarea:focus{
+  border-color: rgba(254,0,62,0.35);
+  box-shadow: 0 0 0 4px rgba(254,0,62,0.16);
+}
+
+.ta-input[disabled]{
+  background: rgba(0,0,0,0.05);
+  color: rgba(0,0,0,0.65);
+}
+
+.ta-row3{
+  display:grid;
+  gap: 10px;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 640px){
+  .ta-row3{ grid-template-columns: repeat(3, minmax(0,1fr)); }
+}
+
+/* Buttons */
+.ta-btn{
+  border-radius: 16px;
+  padding: 9px 12px;
+  font-weight: 900;
+  font-size: 13px;
+  display:inline-flex;
+  gap: 8px;
+  align-items:center;
+  justify-content:center;
+  border: 1px solid transparent;
+  cursor: pointer;
+  user-select: none;
+  transition: transform .08s ease, opacity .2s ease, background .2s ease, border-color .2s ease;
+  white-space: nowrap;
+}
+.ta-btn:active{ transform: scale(0.985); }
+.ta-btn[disabled]{ opacity: .6; cursor: not-allowed; }
+
+.ta-btnPrimary{
+  background:#FE003E;
+  color:#fff;
+  box-shadow: 0 8px 18px rgba(254,0,62,0.18);
+}
+.ta-btnPrimary:hover{ filter: brightness(0.97); }
+
+.ta-btnOutline{
+  background:#fff;
+  color:#111;
+  border-color: rgba(0,0,0,0.15);
+}
+.ta-btnOutline:hover{ background: rgba(0,0,0,0.04); }
+
+.ta-btnDanger{
+  background:#111;
+  color:#fff;
+}
+.ta-btnDanger:hover{ opacity: .92; }
+
+.ta-btnFull{ width: 100%; }
+
+/* List */
+.ta-listHeader{
+  display:flex;
+  gap: 10px;
+  align-items:center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.ta-list{
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display:grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.ta-item{
+  border: 1px solid rgba(0,0,0,0.10);
+  border-radius: 20px;
+  padding: 12px;
+  transition: background .2s ease;
+}
+.ta-item:hover{ background: rgba(0,0,0,0.015); }
+
+.ta-itemRow{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+@media (min-width: 1024px){
+  .ta-itemRow{
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+}
+
+.ta-itemBody{ min-width: 0; }
+
+.ta-itemTitle{
+  font-weight: 900;
+  color:#111;
+  overflow-wrap: anywhere;
+  line-height: 1.15;
+  font-size: 14px;
+}
+
+.ta-id{ color:#FE003E; }
+
+.ta-itemMeta{
+  margin-top: 6px;
+  display:flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  color: rgba(0,0,0,0.60);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.ta-itemDesc{
+  margin-top: 8px;
+  color: rgba(0,0,0,0.72);
+  font-weight: 750;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.ta-badge{
+  display:inline-flex;
+  gap: 8px;
+  align-items:center;
+  margin-top: 8px;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 5px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(254,0,62,0.20);
+  background: rgba(254,0,62,0.10);
+  color:#FE003E;
+}
+
+.ta-actions{
+  display:flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+@media (min-width: 1024px){
+  .ta-actions{ justify-content: flex-end; }
+}
+@media (max-width: 640px){
+  .ta-actions .ta-btn{ width: 100%; }
+}
+
+/* Modal */
+.ta-modalOverlay{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.60);
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  z-index: 50;
+}
+
+.ta-modal{
+  width: 100%;
+  max-width: 520px;
+  background: #fff;
+  border-radius: 22px;
+  border: 1px solid rgba(0,0,0,0.10);
+  box-shadow: 0 26px 60px rgba(0,0,0,0.22);
+  overflow: hidden;
+}
+
+.ta-modalHeader{
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(0,0,0,0.10);
+  display:flex;
+  gap: 10px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.ta-modalTitle{
+  font-size: 16px;
+  font-weight: 900;
+  color:#111;
+  line-height: 1.1;
+}
+
+.ta-modalSub{
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 750;
+  color: rgba(0,0,0,0.55);
+  overflow-wrap: anywhere;
+}
+
+.ta-iconBtn{
+  height: 34px;
+  width: 34px;
+  border-radius: 14px;
+  border: none;
+  background: transparent;
+  display:grid;
+  place-items:center;
+  cursor:pointer;
+}
+.ta-iconBtn:hover{ background: rgba(0,0,0,0.05); }
+
+.ta-modalBody{
+  padding: 12px 14px;
+  max-height: 78vh;
+  overflow: auto;
+}
+
+/* Spin (para Loader2) */
+.ta-spin{
+  animation: ta-spin 1s linear infinite;
+}
+@keyframes ta-spin{
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+
+
+
+/* ===== Acciones solo iconos ===== */
+
+.ta-actions{
+  display:flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+@media (min-width: 1024px){
+  .ta-actions{ justify-content: flex-end; }
+}
+
+/* botón icon-only */
+.ta-iconAction{
+  height: 38px;
+  width: 38px;
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,0.14);
+  background: #fff;
+  color: #111;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: transform .08s ease, background .2s ease, border-color .2s ease, opacity .2s ease;
+}
+.ta-iconAction:hover{
+  background: rgba(0,0,0,0.04);
+  border-color: rgba(0,0,0,0.20);
+}
+.ta-iconAction:active{ transform: scale(0.985); }
+.ta-iconAction:focus{
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(254,0,62,0.16);
+  border-color: rgba(254,0,62,0.28);
+}
+
+.ta-iconAction[disabled]{
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+/* variante danger */
+.ta-iconAction--danger{
+  background: #111;
+  color: #fff;
+  border-color: rgba(0,0,0,0.30);
+}
+.ta-iconAction--danger:hover{
+  opacity: .92;
+}
+
+/* en móvil que no ocupen ancho completo */
+@media (max-width: 640px){
+  .ta-actions{ justify-content: flex-start; }
+}
